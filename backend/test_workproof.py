@@ -113,3 +113,12 @@ def test_dispute_metrics():
     data = response.json()
     assert "average_unpaid_retainage_percentage" in data
     assert len(data["top_dispute_causes"]) >= 4
+
+def test_sqlite_persistence():
+    health_resp = client.get("/health")
+    assert health_resp.status_code == 200
+    data = health_resp.json()
+    assert "SQLite" in data["database"]["engine"]
+    assert data["database"]["stats"]["subscriptions"] >= 1
+    assert data["database"]["stats"]["punch_items"] >= 1
+
