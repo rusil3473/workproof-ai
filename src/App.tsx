@@ -11,11 +11,16 @@ import {
   Calendar,
   PenTool,
   Clock,
+  Mic,
+  Layers,
 } from 'lucide-react';
 import type { Job, Milestone, GPSCoordinates, RevenueCatCustomerInfo } from './types';
 import { GhostCameraModal } from './components/GhostCameraModal';
 import { SignaturePadModal } from './components/SignaturePadModal';
 import { RevenueCatPaywallModal } from './components/RevenueCatPaywallModal';
+import { RevenueCatCustomerCenterModal } from './components/RevenueCatCustomerCenterModal';
+import { VoicePunchListDrawer } from './components/VoicePunchListDrawer';
+import { RedditContractorBanner } from './components/RedditContractorBanner';
 import { PaymentModal } from './components/PaymentModal';
 import { BeforeAfterSlider } from './components/BeforeAfterSlider';
 import { generateCertificatePdf } from './engine/certificatePdfGenerator';
@@ -141,6 +146,8 @@ export function App() {
   const [isSignatureOpen, setIsSignatureOpen] = useState(false);
   const [isPaywallOpen, setIsPaywallOpen] = useState(false);
   const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isVoicePunchOpen, setIsVoicePunchOpen] = useState(false);
+  const [isCustomerCenterOpen, setIsCustomerCenterOpen] = useState(false);
 
   const activeJob = jobs.find((j) => j.id === activeJobId) || jobs[0];
   const activeMilestone = activeJob.milestones.find((m) => m.id === activeMilestoneId);
@@ -277,10 +284,28 @@ export function App() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsVoicePunchOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-bold text-cyan-400 hover:bg-cyan-500/20 transition-colors shadow-sm"
+              title="Open Amazon Alexa+ Hands-Free Punch List"
+            >
+              <Mic className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Alexa+ Voice Punch</span>
+            </button>
+
+            <button
+              onClick={() => setIsCustomerCenterOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+              title="Inspect RevenueCat Entitlements & Webhooks"
+            >
+              <Layers className="h-3.5 w-3.5 text-amber-400" />
+              <span className="hidden sm:inline">RC Entitlements</span>
+            </button>
+
             <button
               onClick={() => setIsPaywallOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400 shadow-sm hover:bg-amber-500/20 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-400 shadow-sm hover:bg-amber-500/20 transition-colors"
             >
               <Crown className="h-3.5 w-3.5 text-amber-400" />
               <span>{rcCustomer.entitlements.pro ? 'PRO CONTRACTOR ACTIVE' : 'UPGRADE TO PRO'}</span>
@@ -291,6 +316,8 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+        {/* Reddit Field Grounding Banner */}
+        <RedditContractorBanner />
         {/* Job Selector Strip */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
           <div>
@@ -620,6 +647,23 @@ export function App() {
           onMarkPaid={handleMarkPaid}
         />
       )}
+
+      <VoicePunchListDrawer
+        isOpen={isVoicePunchOpen}
+        onClose={() => setIsVoicePunchOpen(false)}
+      />
+
+      <RevenueCatCustomerCenterModal
+        isOpen={isCustomerCenterOpen}
+        onClose={() => setIsCustomerCenterOpen(false)}
+        isPro={rcCustomer.entitlements.pro}
+        setIsPro={(val) =>
+          setRcCustomer((prev) => ({
+            ...prev,
+            entitlements: { pro: val },
+          }))
+        }
+      />
     </div>
   );
 }
