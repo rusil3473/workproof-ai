@@ -1,6 +1,6 @@
 import type { Job, Milestone, GPSCoordinates, UserProfile, AuthSession, AIInspectionReport } from '../types';
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://workproof-ai.onrender.com';
+const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://workproof-ai-1.onrender.com';
 const TOKEN_KEY = 'workproof_auth_token';
 
 export function getAuthToken(): string | null {
