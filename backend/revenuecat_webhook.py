@@ -41,12 +41,15 @@ class RevenueCatManager:
         product_id = event_data.get("product_id", "workproof_pro_monthly")
         
         if event_type in ("INITIAL_PURCHASE", "RENEWAL", "PRODUCT_CHANGE"):
+            is_annual = "annual" in product_id
+            from datetime import datetime, timedelta
+            exp_date = (datetime.utcnow() + timedelta(days=365 if is_annual else 30)).strftime("%Y-%m-%dT%H:%M:%SZ")
             self.subscribers[app_user_id] = {
                 "user_id": app_user_id,
-                "tier": "pro_annual" if "annual" in product_id else "pro_monthly",
+                "tier": "pro_annual" if is_annual else "pro_monthly",
                 "entitlements": ["pro_access", "ghost_camera_4k", "unlimited_jobs", "tamper_proof_pdf"],
                 "active_since": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-                "expires_at": "2027-09-22T00:00:00Z",
+                "expires_at": exp_date,
                 "is_active": True,
                 "latest_event": event_type
             }
