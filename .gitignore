@@ -26,3 +26,17 @@ __pycache__/
 *.pyc
 *.db-shm
 *.db-wal
+requirement.md
+
+# Video/audio build artifacts
+brag-output/
+*.webm
+temp-audio.m4a
+
+# Temp scripts (not part of the app)
+record_brag_video.py
+add_audio.py
+create_narrated_demo.py
+
+# Database files
+*.db

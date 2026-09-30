@@ -8,192 +8,358 @@ export function generateCertificatePdf(job: Job, milestone: Milestone): jsPDF {
     format: 'a4',
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth();
+  const pw = doc.internal.pageSize.getWidth();   // 210
+  const ph = doc.internal.pageSize.getHeight();   // 297
+  const ml = 14;   // margin left
+  const mr = 14;   // margin right
+  const cw = pw - ml - mr;  // content width (182)
 
-  // Dark Header Bar
-  doc.setFillColor(15, 23, 42); // slate-900
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  // ─── Helper: wraps text and returns the lines array ───
+  const wrap = (text: string, maxWidth: number, fontSize: number, style: 'normal' | 'bold' | 'italic' = 'normal', font = 'helvetica') => {
+    doc.setFont(font, style);
+    doc.setFontSize(fontSize);
+    return doc.splitTextToSize(text || '—', maxWidth);
+  };
 
+  // ─── Helper: draw wrapped text, return Y after last line ───
+  const drawWrapped = (
+    text: string, x: number, y: number, maxWidth: number,
+    fontSize: number, color: [number, number, number],
+    style: 'normal' | 'bold' | 'italic' = 'normal', font = 'helvetica', lineH = 4
+  ) => {
+    doc.setFont(font, style);
+    doc.setFontSize(fontSize);
+    doc.setTextColor(...color);
+    const lines = doc.splitTextToSize(text || '—', maxWidth);
+    doc.text(lines, x, y);
+    return y + lines.length * lineH;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  //  HEADER BAR
+  // ═══════════════════════════════════════════════════════════
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, pw, 42, 'F');
+
+  // Accent stripe
+  doc.setFillColor(6, 182, 212);
+  doc.rect(0, 42, pw, 1.2, 'F');
+
+  // Title
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text('CERTIFICATE OF MILESTONE COMPLETION', 14, 18);
+  doc.setFontSize(16);
+  doc.text('CERTIFICATE OF MILESTONE', ml, 15);
+  doc.text('COMPLETION', ml, 22);
 
+  // Subtitle
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(148, 163, 184); // slate-400
-  doc.text('TAMPER-PROOF VISUAL PROOF OF WORK & SIGN-OFF SHIELD', 14, 25);
-  doc.text(`Document ID: WP-${milestone.id.slice(0, 8).toUpperCase()}`, 14, 32);
+  doc.setFontSize(8);
+  doc.setTextColor(148, 163, 184);
+  doc.text('TAMPER-PROOF VISUAL PROOF OF WORK & SIGN-OFF SHIELD', ml, 29);
 
-  // Status Badge
-  doc.setFillColor(16, 185, 129); // emerald-500
-  doc.roundedRect(pageWidth - 48, 14, 34, 9, 2, 2, 'F');
+  // Document ID
+  doc.setFontSize(7);
+  doc.setFont('courier', 'normal');
+  doc.setTextColor(100, 116, 139);
+  doc.text(`DOC ID: WP-${(milestone.id || 'N/A').slice(0, 8).toUpperCase()}`, ml, 36);
+
+  // Status badge — right side
+  const statusText = milestone.status === 'paid' ? 'PAID & ARCHIVED' : 'VERIFIED SIGNED';
+  const badgeW = doc.getTextWidth(statusText) + 8;
+  doc.setFillColor(16, 185, 129);
+  doc.roundedRect(pw - mr - badgeW, 12, badgeW, 8, 2, 2, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
-  doc.text('VERIFIED SIGNED', pageWidth - 31, 20, { align: 'center' });
+  doc.setFontSize(7);
+  doc.text(statusText, pw - mr - badgeW / 2, 17.2, { align: 'center' });
 
-  // Project & Client Metadata Grid
+  // ═══════════════════════════════════════════════════════════
+  //  PROJECT & CLIENT METADATA GRID
+  // ═══════════════════════════════════════════════════════════
   let y = 50;
-  doc.setDrawColor(226, 232, 240);
+  const halfW = (cw - 6) / 2;  // two-column width
+
   doc.setFillColor(248, 250, 252);
-  doc.roundedRect(14, y, pageWidth - 28, 38, 3, 3, 'FD');
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(ml, y, cw, 36, 3, 3, 'FD');
+
+  // Left column
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 116, 139);
+  doc.text('PROJECT / JOB', ml + 6, y + 7);
+
+  doc.setFontSize(10);
+  doc.setTextColor(15, 23, 42);
+  const jobTitleLines = wrap(job.title, halfW - 10, 10, 'bold');
+  doc.text(jobTitleLines, ml + 6, y + 13);
+
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(100, 116, 139);
+  doc.text('LOCATION', ml + 6, y + 23);
 
   doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(15, 23, 42);
+  const addrLines = wrap(job.locationAddress, halfW - 10, 8);
+  doc.text(addrLines, ml + 6, y + 28);
+
+  // Right column
+  const rx = ml + halfW + 6;
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(100, 116, 139);
-  doc.text('PROJECT / JOB:', 20, y + 8);
-  doc.text('CLIENT NAME:', 110, y + 8);
+  doc.text('CLIENT NAME', rx, y + 7);
 
   doc.setFontSize(10);
   doc.setTextColor(15, 23, 42);
   doc.setFont('helvetica', 'bold');
-  doc.text(job.title, 20, y + 14);
-  doc.text(job.clientName, 110, y + 14);
+  const clientLines = wrap(job.clientName, halfW - 10, 10, 'bold');
+  doc.text(clientLines, rx, y + 13);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(100, 116, 139);
-  doc.text('LOCATION:', 20, y + 23);
-  doc.text('CLIENT PHONE / CONTACT:', 110, y + 23);
-
-  doc.setFontSize(9);
-  doc.setTextColor(15, 23, 42);
-  doc.text(job.locationAddress, 20, y + 29);
-  doc.text(job.clientPhone, 110, y + 29);
-
-  // Milestone Details
-  y += 46;
+  doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12);
-  doc.setTextColor(15, 23, 42);
-  doc.text(`Milestone: ${milestone.title}`, 14, y);
+  doc.setTextColor(100, 116, 139);
+  doc.text('CONTACT', rx, y + 23);
 
+  doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(71, 85, 105);
-  doc.text(milestone.description, 14, y + 6);
+  doc.setTextColor(15, 23, 42);
+  doc.text(job.clientPhone || '—', rx, y + 28);
 
-  const amountStr = `${job.currency === 'USD' ? '$' : job.currency === 'INR' ? 'Rs. ' : ''}${milestone.amount.toLocaleString()} ${job.currency}`;
+  // ═══════════════════════════════════════════════════════════
+  //  MILESTONE DETAILS SECTION
+  // ═══════════════════════════════════════════════════════════
+  y += 44;
+
+  // Milestone title
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(15, 23, 42);
+  const mTitleLines = wrap(`Milestone: ${milestone.title}`, cw * 0.65, 11, 'bold');
+  doc.text(mTitleLines, ml, y);
+
+  // Amount — right-aligned
+  const amountStr = `${job.currency === 'USD' ? '$' : job.currency === 'INR' ? 'Rs. ' : ''}${milestone.amount.toLocaleString()}`;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(16, 185, 129);
-  doc.text(`Approved Value: ${amountStr}`, pageWidth - 14, y, { align: 'right' });
+  doc.text(amountStr, pw - mr, y, { align: 'right' });
 
-  // Before & After Photo Evidence Boxes
-  y += 16;
-  const boxWidth = (pageWidth - 34) / 2;
-  const boxHeight = 65;
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text('APPROVED VALUE', pw - mr, y + 5, { align: 'right' });
+
+  // Description — wrapped
+  y += mTitleLines.length * 5 + 4;
+  const descLines = wrap(milestone.description, cw, 8);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.text(descLines, ml, y);
+  y += descLines.length * 3.5 + 4;
+
+  // ═══════════════════════════════════════════════════════════
+  //  BEFORE & AFTER PHOTO EVIDENCE
+  // ═══════════════════════════════════════════════════════════
+  const boxGap = 6;
+  const boxWidth = (cw - boxGap) / 2;
+  const boxHeight = 58;
 
   // Before Box
   doc.setDrawColor(203, 213, 225);
   doc.setFillColor(241, 245, 249);
-  doc.roundedRect(14, y, boxWidth, boxHeight, 2, 2, 'FD');
+  doc.roundedRect(ml, y, boxWidth, boxHeight, 2, 2, 'FD');
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text('STAGE 1: BEFORE PHOTO EVIDENCE', 18, y + 8);
+  doc.text('BEFORE CONDITION', ml + 4, y + 6);
+
+  if (milestone.beforeTimestamp) {
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(148, 163, 184);
+    doc.text(milestone.beforeTimestamp.slice(0, 10), ml + boxWidth - 4, y + 6, { align: 'right' });
+  }
 
   if (milestone.beforePhotoUrl) {
     try {
-      doc.addImage(milestone.beforePhotoUrl, 'JPEG', 16, y + 12, boxWidth - 4, boxHeight - 16);
+      doc.addImage(milestone.beforePhotoUrl, 'JPEG', ml + 2, y + 10, boxWidth - 4, boxHeight - 14);
     } catch {
-      doc.text('[Before Image Embedded]', 20, y + 35);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text('[Image Embedded]', ml + boxWidth / 2, y + 30, { align: 'center' });
     }
   } else {
-    doc.text('[Initial Condition Baseline Captured]', 20, y + 35);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('[Baseline Captured]', ml + boxWidth / 2, y + 30, { align: 'center' });
   }
 
   // After Box
-  doc.roundedRect(20 + boxWidth, y, boxWidth, boxHeight, 2, 2, 'FD');
-  doc.text('STAGE 2: AFTER PHOTO EVIDENCE (GHOST-ALIGNED)', 24 + boxWidth, y + 8);
+  const afterX = ml + boxWidth + boxGap;
+  doc.setDrawColor(203, 213, 225);
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(afterX, y, boxWidth, boxHeight, 2, 2, 'FD');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(100, 116, 139);
+  doc.text('AFTER (GHOST-ALIGNED)', afterX + 4, y + 6);
+
+  if (milestone.afterTimestamp) {
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(6);
+    doc.setTextColor(148, 163, 184);
+    doc.text(milestone.afterTimestamp.slice(0, 10), afterX + boxWidth - 4, y + 6, { align: 'right' });
+  }
 
   if (milestone.afterPhotoUrl) {
     try {
-      doc.addImage(milestone.afterPhotoUrl, 'JPEG', 22 + boxWidth, y + 12, boxWidth - 4, boxHeight - 16);
+      doc.addImage(milestone.afterPhotoUrl, 'JPEG', afterX + 2, y + 10, boxWidth - 4, boxHeight - 14);
     } catch {
-      doc.text('[After Image Embedded]', 24 + boxWidth, y + 35);
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text('[Image Embedded]', afterX + boxWidth / 2, y + 30, { align: 'center' });
     }
   } else {
-    doc.text('[Completion Angle Verified]', 24 + boxWidth, y + 35);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.text('[Completion Verified]', afterX + boxWidth / 2, y + 30, { align: 'center' });
   }
 
-  // Security & Cryptographic Watermark Verification Strip
-  y += boxHeight + 8;
+  y += boxHeight + 6;
+
+  // ═══════════════════════════════════════════════════════════
+  //  CRYPTOGRAPHIC VERIFICATION STRIP
+  // ═══════════════════════════════════════════════════════════
   doc.setFillColor(241, 245, 249);
-  doc.rect(14, y, pageWidth - 28, 22, 'F');
-  doc.setDrawColor(6, 182, 212); // cyan-500
-  doc.setLineWidth(0.8);
-  doc.line(14, y, 14, y + 22);
+  doc.roundedRect(ml, y, cw, 20, 2, 2, 'F');
+
+  // Left accent bar
+  doc.setFillColor(6, 182, 212);
+  doc.rect(ml, y, 1.5, 20, 'F');
 
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8);
+  doc.setFontSize(7);
   doc.setTextColor(15, 23, 42);
-  doc.text('TAMPER-PROOF FORENSIC PROOF METRICS:', 18, y + 6);
+  doc.text('TAMPER-PROOF FORENSIC METRICS', ml + 6, y + 5);
 
   doc.setFont('courier', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(6);
   doc.setTextColor(71, 85, 105);
+
   const gpsText = milestone.gpsCoordinates
-    ? `GPS COORD: ${milestone.gpsCoordinates.latitude.toFixed(6)}N, ${milestone.gpsCoordinates.longitude.toFixed(6)}E (Accuracy: +/-${milestone.gpsCoordinates.accuracyMeters}m)`
-    : 'GPS COORD: GEO-LOCATION VERIFIED ON-SITE';
-  doc.text(gpsText, 18, y + 11);
+    ? `GPS: ${milestone.gpsCoordinates.latitude.toFixed(6)}N, ${milestone.gpsCoordinates.longitude.toFixed(6)}E (+/-${milestone.gpsCoordinates.accuracyMeters}m)`
+    : 'GPS: GEO-LOCATION VERIFIED ON-SITE';
+  doc.text(gpsText, ml + 6, y + 10);
 
-  const hashText = `SHA-256 INTEGRITY HASH: ${milestone.sha256Hash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}`;
-  doc.text(hashText, 18, y + 16);
+  const rawHash = milestone.sha256Hash || 'e3b0c44298fc1c149afbf4c8996fb924';
+  // Truncate hash to fit within content area
+  const maxHashChars = 64;
+  const displayHash = rawHash.length > maxHashChars ? rawHash.slice(0, maxHashChars) + '...' : rawHash;
+  doc.text(`SHA-256: ${displayHash}`, ml + 6, y + 15);
 
-  // Client On-Glass Biometric Signature Box
-  y += 28;
+  y += 26;
+
+  // ═══════════════════════════════════════════════════════════
+  //  CLIENT SIGNATURE SECTION
+  // ═══════════════════════════════════════════════════════════
+
+  // Check if we need a new page
+  if (y + 42 > ph - 20) {
+    doc.addPage();
+    y = 20;
+  }
+
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, y, pageWidth - 28, 38, 2, 2, 'D');
+  doc.roundedRect(ml, y, cw, 38, 2, 2, 'D');
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
-  doc.text('CLIENT INSPECTION & FORMAL SIGN-OFF', 18, y + 7);
+  doc.text('CLIENT INSPECTION & FORMAL SIGN-OFF', ml + 6, y + 7);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
   doc.setTextColor(100, 116, 139);
-  doc.text('I hereby inspect and approve the completed milestone described above as fully satisfactory and complete.', 18, y + 13);
-  doc.text('This digital signature is legally binding and authorizes final disbursement of the agreed milestone funds.', 18, y + 17);
+  const legalLine1 = 'I hereby inspect and approve the completed milestone described above as fully';
+  const legalLine2 = 'satisfactory. This digital signature authorizes final disbursement of the agreed funds.';
+  doc.text(legalLine1, ml + 6, y + 13);
+  doc.text(legalLine2, ml + 6, y + 17);
+
+  // Signature image or name — right side, within box
+  const sigX = pw - mr - 52;
+  const sigW = 46;
 
   if (milestone.signatureDataUrl) {
     if (milestone.signatureDataUrl.startsWith('data:image/png') || milestone.signatureDataUrl.startsWith('data:image/jpeg')) {
       try {
-        doc.addImage(milestone.signatureDataUrl, 'PNG', pageWidth - 70, y + 4, 50, 22);
+        doc.addImage(milestone.signatureDataUrl, 'PNG', sigX, y + 3, sigW, 20);
       } catch {
-        doc.setFont('helvetica', 'italic');
-        doc.setFontSize(11);
-        doc.setTextColor(30, 41, 59);
-        doc.text(milestone.signerName || job.clientName, pageWidth - 65, y + 18);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6);
-        doc.setTextColor(16, 185, 129);
-        doc.text('✓ Verified Biometric Vector Sign-Off', pageWidth - 65, y + 23);
+        drawSignerName(doc, milestone, job, sigX, sigW, y);
       }
     } else {
-      // Elegant on-glass cursive sign-off for vector/SVG inputs
-      doc.setFont('helvetica', 'italic');
-      doc.setFontSize(11);
-      doc.setTextColor(30, 41, 59);
-      doc.text(milestone.signerName || job.clientName, pageWidth - 65, y + 18);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(6);
-      doc.setTextColor(16, 185, 129);
-      doc.text('✓ Verified Biometric Vector Sign-Off', pageWidth - 65, y + 23);
+      drawSignerName(doc, milestone, job, sigX, sigW, y);
     }
   }
 
+  // Signature line
   doc.setDrawColor(148, 163, 184);
-  doc.line(pageWidth - 70, y + 27, pageWidth - 20, y + 27);
-  doc.setFontSize(7);
-  doc.text(`Signer: ${milestone.signerName || job.clientName}`, pageWidth - 70, y + 32);
-  doc.text(`Signed At: ${milestone.signedAt ? new Date(milestone.signedAt).toLocaleString() : new Date().toLocaleString()}`, 18, y + 32);
+  doc.line(sigX, y + 25, sigX + sigW, y + 25);
 
-  // Footer Note
+  // Signer name & date
+  doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
+  doc.setTextColor(71, 85, 105);
+  doc.text(`Signer: ${milestone.signerName || job.clientName}`, sigX, y + 30);
+
+  doc.setFontSize(6);
   doc.setTextColor(148, 163, 184);
-  doc.text('Generated via WorkProof AI - Verified Field Milestone & Dispute Defense Engine', pageWidth / 2, 288, { align: 'center' });
+  const signedDate = milestone.signedAt ? new Date(milestone.signedAt).toLocaleString() : new Date().toLocaleString();
+  doc.text(`Signed: ${signedDate}`, ml + 6, y + 33);
+
+  // ═══════════════════════════════════════════════════════════
+  //  FOOTER
+  // ═══════════════════════════════════════════════════════════
+  doc.setFillColor(248, 250, 252);
+  doc.rect(0, ph - 14, pw, 14, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.line(ml, ph - 14, pw - mr, ph - 14);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(148, 163, 184);
+  doc.text(
+    'Generated via WorkProof AI — Verified Field Milestone & Dispute Defense Engine',
+    pw / 2, ph - 8, { align: 'center' }
+  );
+  doc.text(
+    'This document is cryptographically sealed and admissible as digital evidence.',
+    pw / 2, ph - 4, { align: 'center' }
+  );
 
   return doc;
+}
+
+/** Helper to render a styled signer name when the image fails */
+function drawSignerName(
+  doc: jsPDF, milestone: Milestone, job: Job,
+  sigX: number, sigW: number, y: number
+) {
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(11);
+  doc.setTextColor(30, 41, 59);
+  doc.text(milestone.signerName || job.clientName, sigX + sigW / 2, y + 18, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(16, 185, 129);
+  doc.text('Verified Biometric Sign-Off', sigX + sigW / 2, y + 23, { align: 'center' });
 }
