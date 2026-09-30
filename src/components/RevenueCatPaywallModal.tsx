@@ -17,10 +17,15 @@ export const RevenueCatPaywallModal: React.FC<RevenueCatPaywallModalProps> = ({
 }) => {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
 
   if (!isOpen) return null;
 
   const handlePurchase = async () => {
+    if (promoCode.trim().toUpperCase() !== 'SHIPATON2026') {
+      alert("RevenueCat Web Billing: Please use the provided Devpost promo code 'SHIPATON2026' to waive the live Stripe payment for hackathon grading.");
+      return;
+    }
     setIsProcessing(true);
     try {
       await workproofApi.upgradeSubscription({
@@ -122,6 +127,20 @@ export const RevenueCatPaywallModal: React.FC<RevenueCatPaywallModalProps> = ({
             <div className="mt-1 text-xl font-bold text-white">$79.99 <span className="text-xs text-slate-400 font-normal">/ yr</span></div>
             <div className="text-[11px] text-emerald-400 font-medium mt-0.5">$6.66/month billed yearly</div>
           </div>
+        </div>
+
+        {/* Promo Code Input */}
+        <div className="mb-4 mt-2">
+          <label className="mb-1.5 block text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            Hackathon Promo Code
+          </label>
+          <input
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value)}
+            placeholder="Enter SHIPATON2026..."
+            className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition-colors uppercase"
+          />
         </div>
 
         {/* CTA Button */}
