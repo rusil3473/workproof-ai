@@ -45,4 +45,60 @@ export interface RevenueCatCustomerInfo {
   };
   activeSubscriptions: string[];
   expirationDate: string | null;
+  stripeCustomerId?: string;
+  gateway?: string;
+  funnelPartner?: string;
+  pushPartner?: string;
+}
+
+export interface OneSignalNotification {
+  id: string;
+  recipient: string;
+  title: string;
+  message: string;
+  channel: string;
+  delivery_status: string;
+  created_at: string;
+}
+
+export interface UserProfile {
+  id: string;
+  org_id?: string;
+  email: string;
+  full_name: string;
+  role: 'general_contractor' | 'subcontractor' | 'project_owner' | 'inspector';
+  tier: 'free' | 'pro' | 'enterprise';
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface AuthSession {
+  token: string;
+  user: UserProfile;
+}
+
+export interface AIInspectionReport {
+  inspectionId: string;
+  milestoneId: string;
+  timestamp: string;
+  completionPercentage: number;
+  sheenUniformityPercentage: number;
+  edgeAlignmentPercentage: number;
+  disputeShieldScore: number;
+  tradeStandard: string;
+  sheenDisputeAnalysis: {
+    verdict: string;
+    glossUnitVariance: string;
+    illuminationModel: string;
+    summary: string;
+  };
+  defects: Array<{
+    id: string;
+    type: string;
+    severity: string;
+    description: string;
+    boundingBox: { x: number; y: number; width: number; height: number };
+    status: string;
+  }>;
+  tamperProofCertHash: string;
 }
