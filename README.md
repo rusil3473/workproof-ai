@@ -58,30 +58,50 @@ WorkProof AI implements RevenueCat Paywalls v2 architecture to power recurring S
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Quick Start & Submission Setup
 
-### 1. Clone & Install
+### 1. Start the Backend API Server (FastAPI + SQLite WAL)
 ```bash
-git clone https://github.com/rusil3473/workproof-ai.git
-cd workproof-ai
-npm install
+cd backend
+pip install -r requirements.txt  # Or: pip install fastapi uvicorn sqlalchemy pydantic pytest
+python -m uvicorn app:app --host 127.0.0.1 --port 8003 --reload
 ```
+API docs available at: `http://127.0.0.1:8003/docs`  
+Health check: `http://127.0.0.1:8003/health`
 
-### 2. Run Locally
+### 2. Run Backend Automated Test Suite
 ```bash
+cd backend
+python -m pytest -v test_workproof.py
+```
+*(15/15 tests passing: cryptographic proof hashing, lien waiver generation, RevenueCat webhooks, Alexa voice intents, SQLite CRUD, scale telemetry)*
+
+### 3. Start Frontend UI
+```bash
+# In the root repository directory
+npm install
 npm run dev
 ```
-Navigate to `http://localhost:5173`.
+Navigate to `http://localhost:5173` (or `http://localhost:5176`).
 
-### 3. Run Automated Tests
-```bash
-npm test
-```
-
-### 4. Build for Production
+### 4. Build Optimized Production Bundle
 ```bash
 npm run build
 ```
+
+---
+
+## 🏛️ RESTful CRUD API Endpoints
+- `GET /api/jobs`: List all contractor jobs with nested milestones.
+- `POST /api/jobs`: Create new job file.
+- `GET /api/jobs/{id}`, `PUT /api/jobs/{id}`, `DELETE /api/jobs/{id}`: Full CRUD with cascade delete.
+- `POST /api/jobs/{id}/milestones`: Add new milestone stage.
+- `PUT /api/milestones/{id}`, `DELETE /api/milestones/{id}`: Edit or delete milestone stage.
+- `POST /api/milestones/{id}/capture`: Persist before/after photo, GPS, and SHA-256 integrity hash.
+- `POST /api/milestones/{id}/sign`: Record on-glass signature and auto-issue statutory lien waiver.
+- `POST /api/milestones/{id}/pay`: Record instant payout settlement (Stripe/UPI).
+- `POST /api/revenuecat/subscribe`: Activate Pro Contractor subscription in SQLite WAL database.
+- `GET /api/alexa/punchlist`, `POST /api/alexa/punchlist`, `PUT /api/alexa/punchlist/{id}`, `DELETE /api/alexa/punchlist/{id}`: Alexa+ voice punch-list CRUD.
 
 ---
 
