@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import {
   ShieldCheck,
   Camera,
   CheckCircle2,
   Download,
-  Share2,
   Crown,
   CreditCard,
   MapPin,
@@ -13,144 +12,166 @@ import {
   Clock,
   Mic,
   Layers,
+  Plus,
+  Trash2,
+  Edit2,
+  RefreshCw,
+  Bell,
+  Menu,
+  LogOut,
+  Cpu,
+  HardHat,
 } from 'lucide-react';
-import type { Job, Milestone, GPSCoordinates, RevenueCatCustomerInfo } from './types';
-import { GhostCameraModal } from './components/GhostCameraModal';
-import { SignaturePadModal } from './components/SignaturePadModal';
-import { RevenueCatPaywallModal } from './components/RevenueCatPaywallModal';
-import { RevenueCatCustomerCenterModal } from './components/RevenueCatCustomerCenterModal';
-import { VoicePunchListDrawer } from './components/VoicePunchListDrawer';
+import type { Job, Milestone, GPSCoordinates, RevenueCatCustomerInfo, UserProfile } from './types';
 import { RedditContractorBanner } from './components/RedditContractorBanner';
-import { PaymentModal } from './components/PaymentModal';
 import { BeforeAfterSlider } from './components/BeforeAfterSlider';
-import { generateCertificatePdf } from './engine/certificatePdfGenerator';
+import { LandingPage } from './components/LandingPage';
+import { AuthModal } from './components/AuthModal';
+import { LeftSidebarNavigation, type NavTab } from './components/LeftSidebarNavigation';
+import { AIInspectionModal } from './components/AIInspectionModal';
+import { workproofApi, getAuthToken } from './api/workproofApi';
 import confetti from 'canvas-confetti';
 
-const INITIAL_JOBS: Job[] = [
-  {
-    id: 'job-01',
-    title: 'Modern Kitchen Remodel & Island Lighting',
-    category: 'Renovation',
-    clientName: 'Sarah Jenkins',
-    clientPhone: '+1 (512) 555-0194',
-    clientEmail: 'sarah.jenkins@example.com',
-    locationAddress: '2408 Westover Rd, Austin, TX',
-    currency: 'USD',
-    totalAmount: 4200,
-    status: 'active',
-    createdAt: '2026-09-15T09:00:00Z',
-    milestones: [
-      {
-        id: 'm-01',
-        jobId: 'job-01',
-        title: 'Phase 1: Rough-in Electrical & Recessed Fixtures',
-        description: 'Installed 6 recessed LED cans, island pendant wiring, and dedicated 20A GFCI circuit.',
-        amount: 1400,
-        beforePhotoUrl: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=800&auto=format&fit=crop&q=80',
-        afterPhotoUrl: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&auto=format&fit=crop&q=80',
-        beforeTimestamp: '2026-09-16T10:15:00Z',
-        afterTimestamp: '2026-09-17T16:30:00Z',
-        gpsCoordinates: { latitude: 30.2984, longitude: -97.7601, accuracyMeters: 3.5 },
-        sha256Hash: '9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b',
-        signatureDataUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80"><path d="M 10 40 Q 60 10 100 40 T 180 30" fill="none" stroke="black" stroke-width="3"/></svg>',
-        signerName: 'Sarah Jenkins',
-        signedAt: '2026-09-17T17:05:00Z',
-        status: 'signed',
-      },
-      {
-        id: 'm-02',
-        jobId: 'job-01',
-        title: 'Phase 2: Custom Oak Cabinets & Quartz Surface',
-        description: 'Frameless soft-close cabinetry and Calacatta quartz countertops with undermount sink cutout.',
-        amount: 1800,
-        beforePhotoUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80',
-        beforeTimestamp: '2026-09-18T08:30:00Z',
-        gpsCoordinates: { latitude: 30.2984, longitude: -97.7601, accuracyMeters: 3.5 },
-        status: 'before_captured',
-      },
-      {
-        id: 'm-03',
-        jobId: 'job-01',
-        title: 'Phase 3: Backsplash, Appliance Trim & Final Punch',
-        description: 'Handcrafted zellige tile backsplash, dishwasher trim kit, and plumbing fixture test.',
-        amount: 1000,
-        status: 'pending',
-      },
-    ],
-  },
-  {
-    id: 'job-02',
-    title: 'PM Surya Ghar 3kW Rooftop Solar Installation',
-    category: 'Solar Rooftop',
-    clientName: 'Rajesh Sharma',
-    clientPhone: '+91 98450 12345',
-    clientEmail: 'rajesh.sharma@example.in',
-    locationAddress: 'Plot 42, HSR Layout Sector 2, Bengaluru, KA',
-    currency: 'INR',
-    totalAmount: 145000,
-    status: 'active',
-    createdAt: '2026-09-14T11:00:00Z',
-    milestones: [
-      {
-        id: 'm-04',
-        jobId: 'job-02',
-        title: 'Stage 1: Roof Structural Mounting & Earthing Grid',
-        description: 'Installed anodized aluminum rails anchored to RCC roof pillars; dual copper earthing rods tested at <5 ohms.',
-        amount: 45000,
-        beforePhotoUrl: 'https://images.unsplash.com/photo-1508873696983-2df5293cb395?w=800&auto=format&fit=crop&q=80',
-        afterPhotoUrl: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?w=800&auto=format&fit=crop&q=80',
-        beforeTimestamp: '2026-09-15T09:30:00Z',
-        afterTimestamp: '2026-09-16T14:45:00Z',
-        gpsCoordinates: { latitude: 12.9121, longitude: 77.6446, accuracyMeters: 2.8 },
-        sha256Hash: '4f5e6d7c8b9a0f1e2d3c4b5a6f7e8d9c0b1a2f3e4d5c6b7a8f9e0d1c2b3a4f5e',
-        signatureDataUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="80"><path d="M 10 50 Q 50 20 90 50 T 170 40" fill="none" stroke="black" stroke-width="3"/></svg>',
-        signerName: 'Rajesh Sharma',
-        signedAt: '2026-09-16T15:15:00Z',
-        status: 'signed',
-      },
-      {
-        id: 'm-05',
-        jobId: 'job-02',
-        title: 'Stage 2: 8x 540W Mono PERC Panels & Inverter Wiring',
-        description: 'Mounted solar PV modules with MC4 connectors; connected 3.3kW hybrid inverter.',
-        amount: 70000,
-        status: 'pending',
-      },
-      {
-        id: 'm-06',
-        jobId: 'job-02',
-        title: 'Stage 3: DISCOM Net-Meter Commissioning (Subsidy Release)',
-        description: 'BESCOM bi-directional net-meter sync and ₹78,000 PM Surya Ghar subsidy portal photo upload.',
-        amount: 30000,
-        status: 'pending',
-      },
-    ],
-  },
-];
+// High-Scale Code-Splitting: Lazy load heavy modals and signature canvas
+const GhostCameraModal = React.lazy(() => import('./components/GhostCameraModal').then(m => ({ default: m.GhostCameraModal })));
+const SignaturePadModal = React.lazy(() => import('./components/SignaturePadModal').then(m => ({ default: m.SignaturePadModal })));
+const RevenueCatPaywallModal = React.lazy(() => import('./components/RevenueCatPaywallModal').then(m => ({ default: m.RevenueCatPaywallModal })));
+const RevenueCatCustomerCenterModal = React.lazy(() => import('./components/RevenueCatCustomerCenterModal').then(m => ({ default: m.RevenueCatCustomerCenterModal })));
+const VoicePunchListDrawer = React.lazy(() => import('./components/VoicePunchListDrawer').then(m => ({ default: m.VoicePunchListDrawer })));
+const PaymentModal = React.lazy(() => import('./components/PaymentModal').then(m => ({ default: m.PaymentModal })));
+const JobModal = React.lazy(() => import('./components/JobModal').then(m => ({ default: m.JobModal })));
+const MilestoneModal = React.lazy(() => import('./components/MilestoneModal').then(m => ({ default: m.MilestoneModal })));
+const OneSignalNotificationDrawer = React.lazy(() => import('./components/OneSignalNotificationDrawer').then(m => ({ default: m.OneSignalNotificationDrawer })));
 
 export function App() {
-  const [jobs, setJobs] = useState<Job[]>(INITIAL_JOBS);
-  const [activeJobId, setActiveJobId] = useState<string>('job-01');
+  // Authentication & Multi-Tenant State
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authModalEmail, setAuthModalEmail] = useState('');
+
+  // Navigation Drawer State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<NavTab>('projects');
+
+  // Job & Milestone Data State
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [activeJobId, setActiveJobId] = useState<string>('');
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Modal Visibility States
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraMode, setCameraMode] = useState<'before' | 'after'>('before');
+  const [isSignModalOpen, setIsSignModalOpen] = useState(false);
+  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
+  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
+  const [isCustomerCenterOpen, setIsCustomerCenterOpen] = useState(false);
+  const [isVoicePunchOpen, setIsVoicePunchOpen] = useState(false);
+  const [isOneSignalOpen, setIsOneSignalOpen] = useState(false);
+  const [oneSignalCount, setOneSignalCount] = useState<number>(2);
+
+  // Real AI Inspection Modal State
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [selectedMilestoneForAI, setSelectedMilestoneForAI] = useState<Milestone | null>(null);
+
+  // Job & Milestone Edit Modals
+  const [isJobModalOpen, setIsJobModalOpen] = useState(false);
+  const [jobModalMode, setJobModalMode] = useState<'create' | 'edit'>('create');
+  const [isMilestoneModalOpen, setIsMilestoneModalOpen] = useState(false);
+  const [milestoneModalMode, setMilestoneModalMode] = useState<'create' | 'edit'>('create');
+  const [selectedMilestoneForEdit, setSelectedMilestoneForEdit] = useState<Milestone | null>(null);
+
   const [activeMilestoneId, setActiveMilestoneId] = useState<string | null>(null);
 
-  // RevenueCat subscription state
+  // RevenueCat Customer State
   const [rcCustomer, setRcCustomer] = useState<RevenueCatCustomerInfo>({
     entitlements: { pro: true },
     activeSubscriptions: ['workproof_pro_annual'],
-    expirationDate: '2027-09-20T00:00:00Z',
+    expirationDate: '2027-09-29T00:00:00Z',
+    stripeCustomerId: 'cus_contractor_7829',
+    gateway: 'RevenueCat + Stripe Web Billing',
   });
 
-  // Modal controls
-  const [isCameraOpen, setIsCameraOpen] = useState(false);
-  const [cameraMode, setCameraMode] = useState<'before' | 'after'>('before');
-  const [isSignatureOpen, setIsSignatureOpen] = useState(false);
-  const [isPaywallOpen, setIsPaywallOpen] = useState(false);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [isVoicePunchOpen, setIsVoicePunchOpen] = useState(false);
-  const [isCustomerCenterOpen, setIsCustomerCenterOpen] = useState(false);
+  // Verify Auth on Initial Mount
+  useEffect(() => {
+    const token = getAuthToken();
+    if (token) {
+      workproofApi.getMe()
+        .then((user) => {
+          setCurrentUser(user);
+        })
+        .catch(() => {
+          workproofApi.logout();
+          setCurrentUser(null);
+        });
+    }
+  }, []);
 
+  // Fetch Jobs when User is Authenticated
+  const loadJobsFromBackend = async () => {
+    if (!currentUser) return;
+    setIsSyncing(true);
+    try {
+      const data = await workproofApi.fetchJobs();
+      if (Array.isArray(data)) {
+        setJobs(data);
+        if (data.length > 0) {
+          if (!activeJobId || !data.some((j) => j.id === activeJobId)) {
+            setActiveJobId(data[0].id);
+          }
+        } else {
+          setActiveJobId('');
+        }
+      }
+
+      // Sync live RevenueCat customer entitlements
+      try {
+        const rcData = await workproofApi.fetchCustomerEntitlements('rc_usr_contractor_7829');
+        if (rcData && typeof rcData.is_active === 'boolean') {
+          setRcCustomer({
+            entitlements: { pro: rcData.is_active },
+            activeSubscriptions: rcData.is_active ? [rcData.plan_name || 'workproof_pro_annual'] : [],
+            expirationDate: rcData.expires_at || '2027-09-29T00:00:00Z',
+            stripeCustomerId: rcData.stripe_customer_id || 'cus_contractor_7829',
+            gateway: rcData.gateway || 'RevenueCat + Stripe Web Billing',
+          });
+        }
+      } catch {
+        // Fallback
+      }
+
+      // Sync OneSignal push notification count
+      try {
+        const notifs = await workproofApi.fetchOneSignalNotifications();
+        if (Array.isArray(notifs)) {
+          setOneSignalCount(notifs.length);
+        }
+      } catch {
+        // Fallback
+      }
+    } catch {
+      // ignore
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) {
+      loadJobsFromBackend();
+    }
+  }, [currentUser]);
+
+  const handleLogout = () => {
+    workproofApi.logout();
+    setCurrentUser(null);
+    setJobs([]);
+    setActiveJobId('');
+  };
+
+  // Active Job resolution
   const activeJob = jobs.find((j) => j.id === activeJobId) || jobs[0];
-  const activeMilestone = activeJob.milestones.find((m) => m.id === activeMilestoneId);
+  const activeMilestone = activeJob?.milestones?.find((m) => m.id === activeMilestoneId);
 
   // Ghost camera handler
   const handleOpenGhostCamera = (milestoneId: string, mode: 'before' | 'after') => {
@@ -159,9 +180,10 @@ export function App() {
     setIsCameraOpen(true);
   };
 
-  const handleCapturePhoto = (photoDataUrl: string, gps?: GPSCoordinates, sha256Hash?: string) => {
-    if (!activeMilestoneId) return;
+  const handleCapturePhoto = async (photoDataUrl: string, gps?: GPSCoordinates, sha256Hash?: string) => {
+    if (!activeMilestoneId || !activeJob) return;
 
+    // Optimistic UI state update
     setJobs((prevJobs) =>
       prevJobs.map((j) => {
         if (j.id !== activeJob.id) return j;
@@ -192,17 +214,21 @@ export function App() {
       })
     );
 
-    setIsCameraOpen(false);
+    try {
+      await workproofApi.uploadPhotoProof(activeMilestoneId, cameraMode, photoDataUrl, gps, sha256Hash);
+    } catch (err) {
+      console.error('Failed to sync photo to backend:', err);
+    }
   };
 
-  // Signature handler
-  const handleOpenSignature = (milestoneId: string) => {
+  // Signature modal handlers
+  const handleOpenSignModal = (milestoneId: string) => {
     setActiveMilestoneId(milestoneId);
-    setIsSignatureOpen(true);
+    setIsSignModalOpen(true);
   };
 
-  const handleSaveSignature = (signatureDataUrl: string, signerName: string) => {
-    if (!activeMilestoneId) return;
+  const handleSaveSignature = async (signatureDataUrl: string, signerName: string) => {
+    if (!activeMilestoneId || !activeJob) return;
 
     setJobs((prevJobs) =>
       prevJobs.map((j) => {
@@ -223,18 +249,28 @@ export function App() {
       })
     );
 
-    setIsSignatureOpen(false);
-    confetti({ particleCount: 70, spread: 60, origin: { y: 0.7 } });
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 },
+    });
+
+    try {
+      await workproofApi.signMilestone(activeMilestoneId, signatureDataUrl, signerName);
+    } catch (err) {
+      console.error('Failed to save signature to backend:', err);
+    }
   };
 
-  // Payment handler
+  // Payment Settlement handler
   const handleOpenPayment = (milestoneId: string) => {
     setActiveMilestoneId(milestoneId);
     setIsPaymentOpen(true);
   };
 
   const handleMarkPaid = () => {
-    if (!activeMilestoneId) return;
+    if (!activeMilestoneId || !activeJob) return;
+
     setJobs((prevJobs) =>
       prevJobs.map((j) => {
         if (j.id !== activeJob.id) return j;
@@ -242,73 +278,298 @@ export function App() {
           ...j,
           milestones: j.milestones.map((m) => {
             if (m.id !== activeMilestoneId) return m;
-            return { ...m, status: 'paid' };
+            return {
+              ...m,
+              status: 'paid',
+            };
           }),
         };
       })
     );
   };
 
-  // PDF Export
-  const handleDownloadPdf = (milestone: Milestone) => {
-    const doc = generateCertificatePdf(activeJob, milestone);
-    doc.save(`WorkProof-${milestone.id.slice(0, 6)}.pdf`);
+  // Job Modal Handlers
+  const handleOpenAddJob = () => {
+    setJobModalMode('create');
+    setIsJobModalOpen(true);
   };
 
-  // WhatsApp share
-  const handleWhatsAppShare = (milestone: Milestone) => {
-    const amountStr = `${activeJob.currency === 'USD' ? '$' : 'Rs. '}${milestone.amount.toLocaleString()} ${activeJob.currency}`;
-    const text = `*WorkProof AI Milestone Verified!*%0A*Job:* ${activeJob.title}%0A*Milestone:* ${milestone.title}%0A*Amount:* ${amountStr}%0A*Signer:* ${milestone.signerName || activeJob.clientName}%0A*Proof Hash:* ${milestone.sha256Hash ? milestone.sha256Hash.slice(0, 16) + '...' : 'Verified'}`;
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+  const handleOpenEditJob = () => {
+    if (!activeJob) return;
+    setJobModalMode('edit');
+    setIsJobModalOpen(true);
   };
+
+  const handleJobSaved = (savedJob: Job) => {
+    setJobs((prev) => {
+      const idx = prev.findIndex((j) => j.id === savedJob.id);
+      if (idx >= 0) {
+        const copy = [...prev];
+        copy[idx] = savedJob;
+        return copy;
+      } else {
+        return [savedJob, ...prev];
+      }
+    });
+    setActiveJobId(savedJob.id);
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!confirm('Are you sure you want to permanently delete this project?')) return;
+    try {
+      await workproofApi.deleteJob(jobId);
+      setJobs((prev) => {
+        const remaining = prev.filter((j) => j.id !== jobId);
+        if (remaining.length > 0) {
+          setActiveJobId(remaining[0].id);
+        } else {
+          setActiveJobId('');
+        }
+        return remaining;
+      });
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete job');
+    }
+  };
+
+  // Milestone Modal Handlers
+  const handleOpenAddMilestone = () => {
+    setMilestoneModalMode('create');
+    setSelectedMilestoneForEdit(null);
+    setIsMilestoneModalOpen(true);
+  };
+
+  const handleOpenEditMilestone = (milestone: Milestone) => {
+    setMilestoneModalMode('edit');
+    setSelectedMilestoneForEdit(milestone);
+    setIsMilestoneModalOpen(true);
+  };
+
+  const handleMilestoneSaved = (savedMilestone: Milestone) => {
+    if (!activeJob) return;
+    setJobs((prevJobs) =>
+      prevJobs.map((j) => {
+        if (j.id !== activeJob.id) return j;
+        const exists = j.milestones.some((m) => m.id === savedMilestone.id);
+        let updatedMilestones: Milestone[];
+        if (exists) {
+          updatedMilestones = j.milestones.map((m) => (m.id === savedMilestone.id ? savedMilestone : m));
+        } else {
+          updatedMilestones = [...j.milestones, savedMilestone];
+        }
+        return {
+          ...j,
+          milestones: updatedMilestones,
+        };
+      })
+    );
+  };
+
+  const handleDeleteMilestone = async (milestoneId: string) => {
+    if (!confirm('Are you sure you want to delete this milestone?')) return;
+    if (!activeJob) return;
+    try {
+      await workproofApi.deleteMilestone(milestoneId);
+      setJobs((prevJobs) =>
+        prevJobs.map((j) => {
+          if (j.id !== activeJob.id) return j;
+          return {
+            ...j,
+            milestones: j.milestones.filter((m) => m.id !== milestoneId),
+          };
+        })
+      );
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete milestone');
+    }
+  };
+
+  // PDF Certificate Generator
+  const handleDownloadCertificate = async (milestone: Milestone) => {
+    if (!activeJob) return;
+    try {
+      const { generateCertificatePdf } = await import('./engine/certificatePdfGenerator');
+      const doc = generateCertificatePdf(activeJob, milestone);
+      doc.save(`WorkProof-${activeJob.title.replace(/\s+/g, '_')}-${milestone.title.replace(/\s+/g, '_')}.pdf`);
+    } catch (err) {
+      console.error('Failed to generate PDF proof certificate:', err);
+      alert('Generating PDF certificate... (Please verify browser canvas permissions)');
+    }
+  };
+
+  // Open AI inspection modal
+  const handleOpenAIInspection = (milestone: Milestone) => {
+    setSelectedMilestoneForAI(milestone);
+    setIsAIModalOpen(true);
+  };
+
+  // -------------------------------------------------------------
+  // Render Unauthenticated Landing Page if not logged in
+  // -------------------------------------------------------------
+  if (!currentUser) {
+    return (
+      <>
+        <LandingPage
+          onOpenAuth={(mode = 'login', email = '') => {
+            setAuthModalMode(mode);
+            setAuthModalEmail(email);
+            setIsAuthModalOpen(true);
+          }}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          defaultMode={authModalMode}
+          presetEmail={authModalEmail}
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthenticated={(user) => {
+            setCurrentUser(user);
+          }}
+        />
+      </>
+    );
+  }
+
+  // Calculate project statistics
+  const totalMilestones = activeJob?.milestones?.length || 0;
+  const signedMilestones = activeJob?.milestones?.filter((m) => m.status === 'signed' || m.status === 'paid').length || 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500 selection:text-slate-950 font-sans pb-16">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-cyan-500 selection:text-slate-950 pb-20">
+      {/* Left Sidebar Navigation Drawer */}
+      <LeftSidebarNavigation
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        activeTab={activeTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'ai_inspector' && activeJob?.milestones?.[0]) {
+            handleOpenAIInspection(activeJob.milestones[0]);
+          } else if (tab === 'voice_punch') {
+            setIsVoicePunchOpen(true);
+          } else if (tab === 'billing') {
+            setIsCustomerCenterOpen(true);
+          } else if (tab === 'notifications') {
+            setIsOneSignalOpen(true);
+          }
+        }}
+        jobs={jobs}
+        activeJobId={activeJobId}
+        onSelectJob={(id) => setActiveJobId(id)}
+        onOpenCreateJob={handleOpenAddJob}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        unreadPushCount={oneSignalCount}
+        isPro={rcCustomer.entitlements.pro}
+      />
+
+      {/* Enterprise Commercial Header (Zero Developer Leaks) */}
       <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 text-slate-950 shadow-lg shadow-cyan-500/20">
-              <ShieldCheck className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold tracking-tight text-white sm:text-lg">WorkProof AI</span>
-                <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-500/20">
-                  REVENUECAT SHIPATON 2026
-                </span>
+            {/* 3-bar Hamburger Toggle Button */}
+            <button
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:text-white hover:border-slate-700 transition-colors shadow-sm"
+              title="Open Navigation Menu"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-cyan-500 to-emerald-400 text-slate-950 shadow-md shadow-cyan-500/20">
+                <ShieldCheck className="h-5 w-5" />
               </div>
-              <p className="text-xs text-slate-400 hidden sm:block">
-                Ghost Camera Alignment & Client Milestone Sign-Off on Glass
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-extrabold tracking-tight text-white">WorkProof AI</span>
+                  <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-500/20 uppercase">
+                    {currentUser.role === 'general_contractor'
+                      ? 'Contractor Portal'
+                      : currentUser.role === 'project_owner'
+                      ? 'Client Portal'
+                      : 'Auditor Portal'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-400 hidden sm:block">
+                  Cryptographic Milestone Verification &amp; AI Field Co-Pilot
+                </p>
+              </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
+              onClick={loadJobsFromBackend}
+              className={`p-2 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-white transition-colors ${
+                isSyncing ? 'animate-spin' : ''
+              }`}
+              title="Refresh Workspace Data"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
+
+            {/* AI Vision Quick Inspect */}
+            {activeJob?.milestones?.[0] && (
+              <button
+                onClick={() => handleOpenAIInspection(activeJob.milestones[0])}
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition-colors shadow-sm"
+                title="Launch AI Finish & Sheen Inspector"
+              >
+                <Cpu className="h-3.5 w-3.5 text-emerald-400" />
+                <span>AI Vision Inspect</span>
+              </button>
+            )}
+
+            {/* Alexa+ Voice Punch */}
+            <button
               onClick={() => setIsVoicePunchOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-bold text-cyan-400 hover:bg-cyan-500/20 transition-colors shadow-sm"
-              title="Open Amazon Alexa+ Hands-Free Punch List"
+              title="Open Hands-Free Voice Punch List"
             >
               <Mic className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Alexa+ Voice Punch</span>
+              <span className="hidden md:inline">Voice Punch</span>
             </button>
 
+            {/* Push Notifications Bell */}
             <button
-              onClick={() => setIsCustomerCenterOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
-              title="Inspect RevenueCat Entitlements & Webhooks"
+              onClick={() => setIsOneSignalOpen(true)}
+              className="relative inline-flex items-center gap-1.5 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold text-rose-300 hover:bg-rose-500/20 hover:text-white transition-colors shadow-sm"
+              title="Push Notifications"
             >
-              <Layers className="h-3.5 w-3.5 text-amber-400" />
-              <span className="hidden sm:inline">RC Entitlements</span>
+              <Bell className="h-3.5 w-3.5 text-rose-400" />
+              {oneSignalCount > 0 && (
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[9px] font-black text-white">
+                  {oneSignalCount}
+                </span>
+              )}
             </button>
 
+            {/* Pro Contractor Button */}
             <button
               onClick={() => setIsPaywallOpen(true)}
               className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-400 shadow-sm hover:bg-amber-500/20 transition-colors"
             >
               <Crown className="h-3.5 w-3.5 text-amber-400" />
-              <span>{rcCustomer.entitlements.pro ? 'PRO CONTRACTOR ACTIVE' : 'UPGRADE TO PRO'}</span>
+              <span className="hidden sm:inline">
+                {rcCustomer.entitlements.pro ? 'PRO CONTRACTOR' : 'UPGRADE TO PRO'}
+              </span>
+            </button>
+
+            {/* User Profile Pill */}
+            <div className="hidden md:flex items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 px-2.5 py-1">
+              <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-300 font-bold text-[10px]">
+                {currentUser?.full_name ? currentUser.full_name[0].toUpperCase() : 'U'}
+              </div>
+              <span className="text-xs font-semibold text-slate-200">{currentUser?.full_name}</span>
+            </div>
+
+            {/* User Logout */}
+            <button
+              onClick={handleLogout}
+              className="p-1.5 rounded-xl border border-slate-800 bg-slate-900 text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -318,352 +579,473 @@ export function App() {
       <main className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
         {/* Reddit Field Grounding Banner */}
         <RedditContractorBanner />
-        {/* Job Selector Strip */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Job File:</span>
-              <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono">
-                {activeJob.category}
-              </span>
+
+        {/* Empty Workspace State (e.g. for newly registered users with 0 jobs) */}
+        {!activeJob ? (
+          <div className="my-12 rounded-3xl border border-dashed border-slate-800 bg-slate-900/40 p-12 text-center max-w-xl mx-auto">
+            <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 mb-4">
+              <HardHat className="h-8 w-8" />
             </div>
-            <h1 className="mt-1 text-xl font-extrabold text-white sm:text-2xl">{activeJob.title}</h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-4 text-xs text-slate-400">
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-cyan-400" />
-                {activeJob.locationAddress}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                Client: {activeJob.clientName} ({activeJob.clientPhone})
-              </span>
-            </div>
+            <h2 className="text-xl font-bold text-white">Welcome, {currentUser.full_name}!</h2>
+            <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+              Your private workspace is clean and isolated. No other contractor or client can view your projects or milestones.
+            </p>
+            <button
+              onClick={handleOpenAddJob}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 px-6 py-3 text-xs font-extrabold text-slate-950 hover:opacity-95 shadow-lg shadow-cyan-500/20 transition-all"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Create Your First Project File</span>
+            </button>
           </div>
-
-          {/* Job Switcher Tabs */}
-          <div className="flex items-center gap-2">
-            {jobs.map((j) => (
-              <button
-                key={j.id}
-                onClick={() => setActiveJobId(j.id)}
-                className={`rounded-xl px-3.5 py-2 text-xs font-bold transition-all ${
-                  activeJob.id === j.id
-                    ? 'bg-slate-800 text-cyan-400 border border-cyan-500/40 shadow-sm'
-                    : 'bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200'
-                }`}
-              >
-                {j.currency === 'USD' ? '🇺🇸 US: ' : '🇮🇳 India: '}
-                {j.title.split(' ')[0]}...
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Executive Stats Card */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-6">
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-4">
-            <div className="text-xs text-slate-400">Total Contract Value</div>
-            <div className="mt-1 text-xl font-bold text-white">
-              {activeJob.currency === 'USD' ? '$' : 'Rs. '}
-              {activeJob.totalAmount.toLocaleString()}
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-4">
-            <div className="text-xs text-slate-400">Milestones Progress</div>
-            <div className="mt-1 text-xl font-bold text-cyan-400">
-              {activeJob.milestones.filter((m) => m.status === 'signed' || m.status === 'paid').length} / {activeJob.milestones.length} Signed
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-4">
-            <div className="text-xs text-slate-400">Dispute Shield Ratio</div>
-            <div className="mt-1 text-xl font-bold text-emerald-400">100% Tamper-Proof</div>
-          </div>
-
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-4">
-            <div className="text-xs text-slate-400">RevenueCat Monetization</div>
-            <div className="mt-1 text-xl font-bold text-amber-400">50x–200x ROI</div>
-          </div>
-        </div>
-
-        {/* Milestone Cards List */}
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white">Milestone Verification & Sign-Off Cards</h2>
-            <span className="text-xs text-slate-400">Real-time before/after proof & client finger signing</span>
-          </div>
-
-          {activeJob.milestones.map((m, idx) => {
-            const isSigned = m.status === 'signed' || m.status === 'paid';
-            const isCompleted = m.status === 'completed' || isSigned;
-            const hasBefore = Boolean(m.beforePhotoUrl);
-            const hasBoth = Boolean(m.beforePhotoUrl && m.afterPhotoUrl);
-
-            return (
-              <div
-                key={m.id}
-                className={`rounded-2xl bg-slate-900 border transition-all ${
-                  isSigned
-                    ? 'border-emerald-500/40 shadow-lg shadow-emerald-500/5'
-                    : 'border-slate-800 hover:border-slate-700'
-                } p-5 sm:p-6`}
-              >
-                {/* Milestone Top Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-4 border-b border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-300">
-                      {idx + 1}
-                    </span>
-                    <div>
-                      <h3 className="text-base font-bold text-white">{m.title}</h3>
-                      <p className="text-xs text-slate-400 mt-0.5">{m.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-extrabold text-white">
-                      {activeJob.currency === 'USD' ? '$' : 'Rs. '}
-                      {m.amount.toLocaleString()}
-                    </span>
-
-                    {/* Status Badge */}
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
-                        isSigned
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : m.status === 'completed'
-                          ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                          : hasBefore
-                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          : 'bg-slate-800 text-slate-400'
-                      }`}
-                    >
-                      {isSigned ? (
-                        <>
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>VERIFIED SIGNED</span>
-                        </>
-                      ) : m.status === 'completed' ? (
-                        <>
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>AWAITING SIGNATURE</span>
-                        </>
-                      ) : hasBefore ? (
-                        <>
-                          <Camera className="h-3.5 w-3.5" />
-                          <span>READY FOR GHOST AFTER</span>
-                        </>
-                      ) : (
-                        <span>PENDING CAPTURE</span>
-                      )}
-                    </span>
-                  </div>
+        ) : (
+          <>
+            {/* Job Header Strip (Zero horizontal scroll tabs; navigation is via Hamburger Drawer) */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Job File:</span>
+                  <span className="rounded bg-slate-800 px-2 py-0.5 text-xs text-slate-300 font-mono">
+                    {activeJob.category}
+                  </span>
+                  <span className="rounded bg-cyan-500/20 px-2 py-0.5 text-xs text-cyan-300 font-mono">
+                    ID: {activeJob.id}
+                  </span>
                 </div>
 
-                {/* Evidence Photographic Display or Slider */}
-                <div className="my-5">
-                  {hasBoth ? (
-                    <div>
-                      <div className="mb-2 flex items-center justify-between text-xs text-slate-400">
-                        <span className="font-semibold text-cyan-400">
-                          Interactive Ghost-Aligned Comparison (Drag Slider):
-                        </span>
-                        <span>Drag handle to verify before vs after work</span>
-                      </div>
-                      <BeforeAfterSlider
-                        beforeUrl={m.beforePhotoUrl!}
-                        afterUrl={m.afterPhotoUrl!}
-                        height={340}
-                      />
-                    </div>
-                  ) : hasBefore ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-950">
-                        <div className="p-2 text-xs font-bold text-slate-400 border-b border-slate-800 bg-slate-900/60">
-                          STAGE 1: BEFORE PHOTO (LOCKED)
-                        </div>
-                        <img src={m.beforePhotoUrl} alt="Before" className="h-56 w-full object-cover" />
-                      </div>
-
-                      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-cyan-500/40 bg-cyan-950/10 p-6 text-center">
-                        <Camera className="h-10 w-10 text-cyan-400 mb-2" />
-                        <h4 className="text-sm font-bold text-white">Ghost Camera Angle Match Ready</h4>
-                        <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                          Open the camera to overlay a 30% translucent ghost of the before photo for exact perspective match.
-                        </p>
-                        <button
-                          onClick={() => handleOpenGhostCamera(m.id, 'after')}
-                          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors shadow-lg shadow-cyan-500/20"
-                        >
-                          <Camera className="h-4 w-4" />
-                          Open Ghost Camera Viewfinder
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-800 bg-slate-950/60 p-8 text-center">
-                      <Camera className="h-10 w-10 text-slate-600 mb-2" />
-                      <h4 className="text-sm font-bold text-white">No Baseline Photos Yet</h4>
-                      <p className="text-xs text-slate-400 mt-1 max-w-xs">
-                        Capture the initial jobsite condition before starting work to establish tamper-proof proof.
-                      </p>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <h1 className="text-xl font-extrabold text-white sm:text-2xl">{activeJob.title}</h1>
+                  {currentUser.role !== 'project_owner' && (
+                    <div className="flex items-center gap-1.5">
                       <button
-                        onClick={() => handleOpenGhostCamera(m.id, 'before')}
-                        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-slate-800 border border-slate-700 px-4 py-2.5 text-xs font-bold text-slate-200 hover:bg-slate-700 transition-colors"
+                        onClick={handleOpenEditJob}
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
+                        title="Edit Project Details"
                       >
-                        <Camera className="h-4 w-4 text-cyan-400" />
-                        Capture Before Photo
+                        <Edit2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteJob(activeJob.id)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                        title="Delete Project"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Cryptographic & Forensic Metadata Strip */}
-                {m.sha256Hash && (
-                  <div className="my-4 rounded-xl bg-slate-950 border border-slate-800/80 p-3 text-xs font-mono flex flex-wrap items-center justify-between gap-3 text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                      <span>SHA-256: {m.sha256Hash.slice(0, 24)}...</span>
-                    </div>
-                    {m.gpsCoordinates && (
-                      <div className="flex items-center gap-1.5 text-slate-300">
-                        <MapPin className="h-3.5 w-3.5 text-cyan-400" />
-                        <span>
-                          {m.gpsCoordinates.latitude.toFixed(5)}N, {m.gpsCoordinates.longitude.toFixed(5)}E
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Bottom Milestone Action Bar */}
-                <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {/* Capture After button */}
-                    {hasBefore && !m.afterPhotoUrl && (
-                      <button
-                        onClick={() => handleOpenGhostCamera(m.id, 'after')}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors shadow"
-                      >
-                        <Camera className="h-3.5 w-3.5" />
-                        Ghost Camera HUD
-                      </button>
-                    )}
-
-                    {/* Sign on Glass button */}
-                    {isCompleted && !isSigned && (
-                      <button
-                        onClick={() => handleOpenSignature(m.id)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20"
-                      >
-                        <PenTool className="h-3.5 w-3.5" />
-                        Client Sign-Off on Glass
-                      </button>
-                    )}
-
-                    {/* Signed details */}
-                    {isSigned && (
-                      <div className="flex items-center gap-2 text-xs text-emerald-400 font-medium">
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>Signed by {m.signerName || activeJob.clientName}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {/* Payment Trigger */}
-                    <button
-                      onClick={() => handleOpenPayment(m.id)}
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
-                    >
-                      <CreditCard className="h-3.5 w-3.5 text-cyan-400" />
-                      Instant Pay
-                    </button>
-
-                    {/* Download Certificate */}
-                    {isSigned && (
-                      <button
-                        onClick={() => handleDownloadPdf(m)}
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
-                      >
-                        <Download className="h-3.5 w-3.5 text-emerald-400" />
-                        Certificate PDF
-                      </button>
-                    )}
-
-                    {/* WhatsApp Share */}
-                    {isSigned && (
-                      <button
-                        onClick={() => handleWhatsAppShare(m)}
-                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-600/30 transition-colors"
-                      >
-                        <Share2 className="h-3.5 w-3.5" />
-                        WhatsApp
-                      </button>
-                    )}
-                  </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3.5 w-3.5 text-cyan-400" />
+                    {activeJob.locationAddress}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                    Client: {activeJob.clientName} ({activeJob.clientPhone || 'No Phone'})
+                  </span>
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              {/* Actions Right */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsSidebarOpen(true)}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3.5 py-2 text-xs font-bold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+                >
+                  <Menu className="h-3.5 w-3.5 text-cyan-400" />
+                  <span>Switch Projects ({jobs.length})</span>
+                </button>
+
+                {currentUser.role !== 'project_owner' && (
+                  <button
+                    onClick={handleOpenAddJob}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 px-3.5 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/20 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>New Project</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* KPI Metrics Dashboard Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 py-6">
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
+                <div className="text-xs font-semibold text-slate-400">Total Contract Value</div>
+                <div className="mt-1 text-2xl font-extrabold text-white">
+                  {activeJob.currency === 'USD' ? '$' : '₹'}
+                  {activeJob.totalAmount.toLocaleString()}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
+                <div className="text-xs font-semibold text-slate-400">Milestones Progress</div>
+                <div className="mt-1 text-2xl font-extrabold text-cyan-400">
+                  {signedMilestones} / {totalMilestones} Signed
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
+                <div className="text-xs font-semibold text-slate-400">Dispute Shield Ratio</div>
+                <div className="mt-1 text-2xl font-extrabold text-emerald-400">100% Tamper-Proof</div>
+              </div>
+
+              <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4">
+                <div className="text-xs font-semibold text-slate-400">Payment Security</div>
+                <div className="mt-1 text-2xl font-extrabold text-amber-400">Instant Draw</div>
+              </div>
+            </div>
+
+            {/* Milestone Cards List */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-white">Milestone Verification &amp; Sign-Off Cards</h2>
+                  <span className="text-xs text-slate-400">Real-time before/after proof &amp; client finger signing</span>
+                </div>
+
+                {currentUser.role !== 'project_owner' && (
+                  <button
+                    onClick={handleOpenAddMilestone}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-cyan-500 px-3.5 py-2 text-xs font-bold text-slate-950 hover:bg-cyan-400 transition-colors shadow-md shadow-cyan-500/20"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Add Stage</span>
+                  </button>
+                )}
+              </div>
+
+              {activeJob.milestones?.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-800 bg-slate-900/40 p-8 text-center text-slate-400">
+                  <Layers className="mx-auto h-8 w-8 text-slate-600 mb-2" />
+                  <p className="text-sm font-semibold text-white">No milestone stages attached to this project yet.</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Click &ldquo;+ Add Stage&rdquo; above to define milestone deliverables and draw amounts.
+                  </p>
+                </div>
+              ) : (
+                activeJob.milestones?.map((m, idx) => {
+                  const isSigned = m.status === 'signed' || m.status === 'paid';
+                  const isCompleted = m.status === 'completed' || isSigned;
+                  const hasBefore = Boolean(m.beforePhotoUrl);
+                  const hasBoth = Boolean(m.beforePhotoUrl && m.afterPhotoUrl);
+
+                  return (
+                    <div
+                      key={m.id}
+                      className={`rounded-2xl bg-slate-900 border transition-all ${
+                        isSigned
+                          ? 'border-emerald-500/40 shadow-lg shadow-emerald-500/5'
+                          : 'border-slate-800 hover:border-slate-700'
+                      } p-5 sm:p-6`}
+                    >
+                      {/* Milestone Top Row */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-4 border-b border-slate-800">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-xs font-bold text-slate-300">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-base font-bold text-white">{m.title}</h3>
+                              {currentUser.role !== 'project_owner' && (
+                                <>
+                                  <button
+                                    onClick={() => handleOpenEditMilestone(m)}
+                                    className="p-1 text-slate-500 hover:text-cyan-400 transition-colors"
+                                    title="Edit Stage"
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMilestone(m.id)}
+                                    className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                                    title="Delete Stage"
+                                  >
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">{m.description}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg font-extrabold text-white">
+                            {activeJob.currency === 'USD' ? '$' : '₹'}
+                            {m.amount.toLocaleString()}
+                          </span>
+
+                          {/* Status Badge */}
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${
+                              isSigned
+                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                : m.status === 'completed'
+                                ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                                : hasBefore
+                                ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {isSigned ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>{m.status === 'paid' ? 'PAID & ARCHIVED' : 'VERIFIED SIGNED'}</span>
+                              </>
+                            ) : m.status === 'completed' ? (
+                              <>
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>AWAITING SIGNATURE</span>
+                              </>
+                            ) : hasBefore ? (
+                              <>
+                                <Camera className="h-3.5 w-3.5" />
+                                <span>BEFORE CAPTURED</span>
+                              </>
+                            ) : (
+                              <span>PENDING WORK</span>
+                            )}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Middle Photo & Comparison Slider Viewport */}
+                      <div className="py-4">
+                        {hasBoth ? (
+                          <div className="rounded-xl overflow-hidden border border-slate-800">
+                            <BeforeAfterSlider
+                              beforeUrl={m.beforePhotoUrl!}
+                              afterUrl={m.afterPhotoUrl!}
+                              beforeLabel={m.beforeTimestamp ? `BEFORE (${m.beforeTimestamp.slice(0, 10)})` : 'BEFORE'}
+                              afterLabel={m.afterTimestamp ? `AFTER (${m.afterTimestamp.slice(0, 10)})` : 'AFTER (ALIGNED)'}
+                            />
+                          </div>
+                        ) : hasBefore ? (
+                          <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-950 p-3">
+                            <div className="text-xs font-semibold text-slate-400 mb-2 flex items-center justify-between">
+                              <span>Before Condition Photo</span>
+                              <span className="text-[10px] font-mono text-slate-500">
+                                {m.beforeTimestamp ? m.beforeTimestamp.slice(0, 10) : ''}
+                              </span>
+                            </div>
+                            <div className="relative aspect-video rounded-lg overflow-hidden border border-slate-800">
+                              <img
+                                src={m.beforePhotoUrl}
+                                alt="Before condition"
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-slate-800 bg-slate-950/60 p-6 text-center text-xs text-slate-500">
+                            No photo proof captured yet. Use the Ghost Camera below to lock the before angle.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Bottom Action Bar */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800">
+                        {/* Left Proof Details & AI Inspection Trigger */}
+                        <div className="flex items-center gap-2">
+                          {m.sha256Hash && (
+                            <span className="text-[10px] font-mono text-emerald-400/80 bg-emerald-950/40 px-2 py-1 rounded border border-emerald-500/20">
+                              SHA-256: {m.sha256Hash.slice(0, 16)}...
+                            </span>
+                          )}
+
+                          {/* AI Inspection Button */}
+                          <button
+                            onClick={() => handleOpenAIInspection(m)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-bold text-emerald-300 hover:bg-emerald-500/20 transition-colors shadow-sm"
+                            title="Inspect Surface Sheen and Defect Alignment with AI"
+                          >
+                            <Cpu className="h-3.5 w-3.5 text-emerald-400" />
+                            <span>AI Vision Inspect</span>
+                          </button>
+                        </div>
+
+                        {/* Right Buttons */}
+                        <div className="flex flex-wrap items-center gap-2">
+                          {/* Ghost Camera capture triggers */}
+                          {currentUser.role !== 'project_owner' && (
+                            <>
+                              {!hasBefore && (
+                                <button
+                                  onClick={() => handleOpenGhostCamera(m.id, 'before')}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 hover:text-white transition-colors"
+                                >
+                                  <Camera className="h-3.5 w-3.5 text-cyan-400" />
+                                  <span>Snap Before Condition</span>
+                                </button>
+                              )}
+
+                              {hasBefore && !m.afterPhotoUrl && (
+                                <button
+                                  onClick={() => handleOpenGhostCamera(m.id, 'after')}
+                                  className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-3 py-1.5 text-xs font-bold text-cyan-400 hover:bg-cyan-500/20 transition-colors shadow-sm"
+                                >
+                                  <Camera className="h-3.5 w-3.5" />
+                                  <span>Ghost-Aligned After Shot</span>
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {/* Sign on glass button */}
+                          {isCompleted && !isSigned && (
+                            <button
+                              onClick={() => handleOpenSignModal(m.id)}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 px-3.5 py-1.5 text-xs font-extrabold text-slate-950 shadow-md shadow-emerald-500/20 hover:brightness-110 transition-all"
+                            >
+                              <PenTool className="h-3.5 w-3.5" />
+                              <span>Client Sign On Glass</span>
+                            </button>
+                          )}
+
+                          {/* Instant payout settlement */}
+                          {isSigned && m.status !== 'paid' && currentUser.role !== 'project_owner' && (
+                            <button
+                              onClick={() => handleOpenPayment(m.id)}
+                              className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-3 py-1.5 text-xs font-bold text-slate-950 hover:bg-amber-400 transition-colors shadow-sm shadow-amber-500/20"
+                            >
+                              <CreditCard className="h-3.5 w-3.5" />
+                              <span>Instant Payout Settlement</span>
+                            </button>
+                          )}
+
+                          {/* Download PDF Proof Certificate */}
+                          {isSigned && (
+                            <button
+                              onClick={() => handleDownloadCertificate(m)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-slate-700 bg-slate-800/80 px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                              title="Download Court-Admissible Proof Certificate"
+                            >
+                              <Download className="h-3.5 w-3.5 text-cyan-400" />
+                              <span className="hidden sm:inline">Court Proof PDF</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
       </main>
 
-      {/* Modals */}
-      <GhostCameraModal
-        isOpen={isCameraOpen}
-        mode={cameraMode}
-        referenceBeforeUrl={activeMilestone?.beforePhotoUrl}
-        onClose={() => setIsCameraOpen(false)}
-        onCapture={handleCapturePhoto}
-      />
+      {/* Lazy Modals Render with Suspense */}
+      <Suspense fallback={null}>
+        {isCameraOpen && (
+          <GhostCameraModal
+            isOpen={isCameraOpen}
+            mode={cameraMode}
+            referenceBeforeUrl={cameraMode === 'after' ? activeMilestone?.beforePhotoUrl : undefined}
+            onClose={() => setIsCameraOpen(false)}
+            onCapture={handleCapturePhoto}
+          />
+        )}
 
-      <SignaturePadModal
-        isOpen={isSignatureOpen}
-        clientName={activeJob.clientName}
-        onClose={() => setIsSignatureOpen(false)}
-        onSave={handleSaveSignature}
-      />
+        {isSignModalOpen && activeMilestone && (
+          <SignaturePadModal
+            isOpen={isSignModalOpen}
+            clientName={activeJob?.clientName || 'Client'}
+            onClose={() => setIsSignModalOpen(false)}
+            onSave={handleSaveSignature}
+          />
+        )}
 
-      <RevenueCatPaywallModal
-        isOpen={isPaywallOpen}
-        onClose={() => setIsPaywallOpen(false)}
-        onUpgradeSuccess={() =>
-          setRcCustomer({
-            entitlements: { pro: true },
-            activeSubscriptions: ['workproof_pro_annual'],
-            expirationDate: '2027-09-20T00:00:00Z',
-          })
-        }
-      />
+        {isAIModalOpen && selectedMilestoneForAI && (
+          <AIInspectionModal
+            isOpen={isAIModalOpen}
+            milestone={selectedMilestoneForAI}
+            jobCategory={activeJob?.category}
+            onClose={() => setIsAIModalOpen(false)}
+          />
+        )}
 
-      {activeMilestone && (
-        <PaymentModal
-          isOpen={isPaymentOpen}
-          job={activeJob}
-          milestone={activeMilestone}
-          onClose={() => setIsPaymentOpen(false)}
-          onMarkPaid={handleMarkPaid}
-        />
-      )}
+        {isPaywallOpen && (
+          <RevenueCatPaywallModal
+            isOpen={isPaywallOpen}
+            onClose={() => setIsPaywallOpen(false)}
+            onUpgradeSuccess={() => {
+              setRcCustomer((prev) => ({
+                ...prev,
+                entitlements: { pro: true },
+              }));
+              setIsPaywallOpen(false);
+              confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+            }}
+          />
+        )}
 
-      <VoicePunchListDrawer
-        isOpen={isVoicePunchOpen}
-        onClose={() => setIsVoicePunchOpen(false)}
-      />
+        {isPaymentOpen && activeMilestone && (
+          <PaymentModal
+            isOpen={isPaymentOpen}
+            job={activeJob}
+            milestone={activeMilestone}
+            onClose={() => setIsPaymentOpen(false)}
+            onMarkPaid={handleMarkPaid}
+          />
+        )}
 
-      <RevenueCatCustomerCenterModal
-        isOpen={isCustomerCenterOpen}
-        onClose={() => setIsCustomerCenterOpen(false)}
-        isPro={rcCustomer.entitlements.pro}
-        setIsPro={(val) =>
-          setRcCustomer((prev) => ({
-            ...prev,
-            entitlements: { pro: val },
-          }))
-        }
-      />
+        {isVoicePunchOpen && (
+          <VoicePunchListDrawer
+            isOpen={isVoicePunchOpen}
+            onClose={() => setIsVoicePunchOpen(false)}
+          />
+        )}
+
+        {isOneSignalOpen && (
+          <OneSignalNotificationDrawer
+            isOpen={isOneSignalOpen}
+            onClose={() => {
+              setIsOneSignalOpen(false);
+              loadJobsFromBackend();
+            }}
+          />
+        )}
+
+        {isCustomerCenterOpen && (
+          <RevenueCatCustomerCenterModal
+            isOpen={isCustomerCenterOpen}
+            onClose={() => setIsCustomerCenterOpen(false)}
+            isPro={rcCustomer.entitlements.pro}
+            setIsPro={(val) =>
+              setRcCustomer((prev) => ({
+                ...prev,
+                entitlements: { pro: val },
+              }))
+            }
+          />
+        )}
+
+        {isJobModalOpen && (
+          <JobModal
+            isOpen={isJobModalOpen}
+            mode={jobModalMode}
+            initialJob={jobModalMode === 'edit' ? activeJob : null}
+            onClose={() => setIsJobModalOpen(false)}
+            onSaved={handleJobSaved}
+          />
+        )}
+
+        {isMilestoneModalOpen && (
+          <MilestoneModal
+            isOpen={isMilestoneModalOpen}
+            mode={milestoneModalMode}
+            jobId={activeJob.id}
+            currency={activeJob.currency}
+            initialMilestone={selectedMilestoneForEdit}
+            onClose={() => setIsMilestoneModalOpen(false)}
+            onSaved={handleMilestoneSaved}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

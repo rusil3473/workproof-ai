@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Mic, CheckCircle2, Volume2, X, Send } from 'lucide-react';
+import { Mic, CheckCircle2, Volume2, X, Send, Trash2 } from 'lucide-react';
+import { punchItemSchema } from '../schemas/formSchemas';
+import { workproofApi } from '../api/workproofApi';
 
 interface PunchItem {
   id: string;
@@ -26,35 +28,22 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
 
   const fetchItems = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8002/api/alexa/punchlist');
-      if (res.ok) {
-        const data = await res.json();
-        setItems(data);
+      const data = await workproofApi.fetchPunchItems();
+      if (Array.isArray(data)) {
+        setItems(
+          data.map((d: any) => ({
+            id: d.id || d.punch_id,
+            task: d.task || d.title,
+            trade: d.trade || 'General Construction',
+            priority: d.priority || 'Medium',
+            status: d.status?.toLowerCase() === 'completed' || d.status?.toLowerCase() === 'resolved' ? 'completed' : 'pending',
+            logged_via: d.logged_via || 'Alexa+ Voice',
+            timestamp: d.timestamp || d.created_at || new Date().toISOString()
+          }))
+        );
       }
     } catch {
-      // Fallback in-memory
-      if (items.length === 0) {
-        setItems([
-          {
-            id: 'pl-01',
-            task: 'Touch up drywall taping on south corner',
-            trade: 'Drywall / Paint',
-            priority: 'Medium',
-            status: 'pending',
-            logged_via: 'Alexa+ Voice',
-            timestamp: new Date().toISOString()
-          },
-          {
-            id: 'pl-02',
-            task: 'Calibrate GFCI outlet on kitchen island circuit',
-            trade: 'Electrical',
-            priority: 'High',
-            status: 'completed',
-            logged_via: 'Alexa+ Voice',
-            timestamp: new Date().toISOString()
-          }
-        ]);
-      }
+      // Fallback
     }
   };
 
@@ -72,7 +61,8 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
     setLastAlexaResponse(`Processing voice input: "${task}"...`);
 
     try {
-      const res = await fetch('http://127.0.0.1:8002/api/alexa/intent', {
+      const apiBase = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:8003';
+      const res = await fetch(`${apiBase}/api/alexa/intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -83,34 +73,61 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
 
       if (res.ok) {
         const result = await res.json();
-        setLastAlexaResponse(result.speech_output);
+        setLastAlexaResponse(result.speech_output || `Added "${task}" via Alexa+ Co-Pilot.`);
         await fetchItems();
       } else {
-        throw new Error('API request failed');
+        // Direct API create
+        await workproofApi.addPunchItem({ task, trade, priority });
+        setLastAlexaResponse(`Added punch item: "${task}". Logged to SQLite ledger.`);
+        await fetchItems();
       }
     } catch {
-      // Client-side fallback
-      const newItem: PunchItem = {
-        id: `pl-${Date.now().toString().slice(-4)}`,
-        task,
-        trade,
-        priority,
-        status: 'pending',
-        logged_via: 'Alexa+ Voice',
-        timestamp: new Date().toISOString()
-      };
-      setItems((prev) => [newItem, ...prev]);
-      setLastAlexaResponse(`Added punch item for ${trade}: '${task}'. Logged to WorkProof ledger.`);
+      try {
+        await workproofApi.addPunchItem({ task, trade, priority });
+        await fetchItems();
+        setLastAlexaResponse(`Added punch item: "${task}". Logged to SQLite ledger.`);
+      } catch {
+        const newItem: PunchItem = {
+          id: `pl-${Date.now().toString().slice(-4)}`,
+          task,
+          trade,
+          priority,
+          status: 'pending',
+          logged_via: 'Alexa+ Voice',
+          timestamp: new Date().toISOString()
+        };
+        setItems((prev) => [newItem, ...prev]);
+        setLastAlexaResponse(`Added punch item: '${task}' (Offline Buffer).`);
+      }
     } finally {
       setIsListening(false);
       setLoading(false);
     }
   };
 
-  const handleToggleItemStatus = (id: string) => {
+  const handleToggleItemStatus = async (item: PunchItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newStatus = item.status === 'pending' ? 'completed' : 'pending';
+    // Optimistic UI update
     setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, status: i.status === 'pending' ? 'completed' : 'pending' } : i))
+      prev.map((i) => (i.id === item.id ? { ...i, status: newStatus } : i))
     );
+    try {
+      await workproofApi.updatePunchItem(item.id, { status: newStatus });
+    } catch {
+      // Revert if error
+      await fetchItems();
+    }
+  };
+
+  const handleDeleteItem = async (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setItems((prev) => prev.filter((i) => i.id !== itemId));
+    try {
+      await workproofApi.deletePunchItem(itemId);
+    } catch {
+      await fetchItems();
+    }
   };
 
   const filteredItems = items.filter((i) => (tradeFilter === 'All' ? true : i.trade.includes(tradeFilter)));
@@ -127,8 +144,8 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-white">Amazon Alexa+ Voice Punch-List</h3>
-                <span className="rounded bg-cyan-500/20 px-1.5 py-0.2 text-[9px] font-bold text-cyan-400">
-                  HANDS-FREE HUD
+                <span className="rounded bg-cyan-500/20 px-1.5 py-0.5 text-[9px] font-bold text-cyan-400">
+                  SQLITE WAL PERSISTED
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">Contractor field dictation without glove removal</p>
@@ -191,7 +208,7 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
 
         {/* Trade Filter Tabs */}
         <div className="flex items-center gap-1 overflow-x-auto px-4 py-2 border-b border-slate-800 text-xs">
-          {['All', 'Carpentry', 'Plumbing', 'Electrical', 'Solar', 'Drywall'].map((t) => (
+          {['All', 'Carpentry', 'Plumbing', 'Electrical', 'Solar', 'Masonry'].map((t) => (
             <button
               key={t}
               onClick={() => setTradeFilter(t)}
@@ -217,28 +234,31 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
 
           {filteredItems.length === 0 ? (
             <div className="py-8 text-center text-xs text-slate-500">
-              No punch items recorded yet. Use voice command to add.
+              No punch items recorded yet. Use voice command or type below to add.
             </div>
           ) : (
             filteredItems.map((item) => (
               <div
                 key={item.id}
-                onClick={() => handleToggleItemStatus(item.id)}
-                className={`cursor-pointer rounded-xl border p-3 transition-all ${
+                className={`rounded-xl border p-3 transition-all ${
                   item.status === 'completed'
                     ? 'bg-slate-950/60 border-emerald-500/30 opacity-75'
                     : 'bg-slate-950 border-slate-800 hover:border-slate-700'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2">
-                    <div className="mt-0.5">
+                  <div className="flex items-start gap-2.5 flex-1">
+                    <button
+                      onClick={(e) => handleToggleItemStatus(item, e)}
+                      className="mt-0.5 shrink-0 focus:outline-none"
+                      title={item.status === 'completed' ? 'Mark Pending' : 'Mark Completed'}
+                    >
                       {item.status === 'completed' ? (
                         <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                       ) : (
-                        <div className="h-4 w-4 rounded-full border border-slate-600" />
+                        <div className="h-4 w-4 rounded-full border border-slate-600 hover:border-cyan-400" />
                       )}
-                    </div>
+                    </button>
                     <div>
                       <p
                         className={`text-xs font-semibold ${
@@ -247,7 +267,7 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
                       >
                         {item.task}
                       </p>
-                      <div className="mt-1 flex items-center gap-2 text-[10px] text-slate-400">
+                      <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
                         <span className="rounded bg-slate-800 px-1.5 py-0.5 text-cyan-300 font-medium">
                           {item.trade}
                         </span>
@@ -256,15 +276,24 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
                     </div>
                   </div>
 
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
-                      item.priority === 'High'
-                        ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                        : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                    }`}
-                  >
-                    {item.priority}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${
+                        item.priority === 'High' || item.priority === 'Critical'
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      }`}
+                    >
+                      {item.priority}
+                    </span>
+                    <button
+                      onClick={(e) => handleDeleteItem(item.id, e)}
+                      className="rounded p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800 transition-colors"
+                      title="Delete Item"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))
@@ -276,10 +305,18 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              if (customVoiceInput.trim()) {
-                handleSimulateAlexaVoice(customVoiceInput.trim(), 'General', 'Medium');
-                setCustomVoiceInput('');
+              const validation = punchItemSchema.safeParse({
+                task: customVoiceInput.trim(),
+                trade: tradeFilter !== 'All' ? tradeFilter : 'General Construction',
+                priority: 'Medium'
+              });
+              if (!validation.success) {
+                const issue = validation.error.issues[0];
+                setLastAlexaResponse(issue ? `Validation error: ${issue.message}` : 'Please enter valid task');
+                return;
               }
+              handleSimulateAlexaVoice(validation.data.task, validation.data.trade, validation.data.priority);
+              setCustomVoiceInput('');
             }}
             className="flex items-center gap-2"
           >
@@ -292,7 +329,8 @@ export const VoicePunchListDrawer: React.FC<VoicePunchListDrawerProps> = ({ isOp
             />
             <button
               type="submit"
-              className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 shadow-md"
+              disabled={loading}
+              className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500 text-slate-950 font-bold hover:bg-cyan-400 shadow-md disabled:opacity-50"
             >
               <Send className="h-3.5 w-3.5" />
             </button>
