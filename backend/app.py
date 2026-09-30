@@ -70,6 +70,14 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Consolidated Enterprise Token Bucket Rate Limiting (100k req/min)
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):
