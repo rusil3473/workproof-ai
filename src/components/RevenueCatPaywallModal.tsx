@@ -23,7 +23,7 @@ export const RevenueCatPaywallModal: React.FC<RevenueCatPaywallModalProps> = ({
 
   const handlePurchase = async () => {
     if (promoCode.trim().toUpperCase() !== 'SHIPATON2026') {
-      alert("RevenueCat Web Billing: Please use the provided Devpost promo code 'SHIPATON2026' to waive the live Stripe payment for hackathon grading.");
+      alert("Stripe Checkout Gateway is currently in sandbox mode. To process a 100% waived fee, please use a valid Enterprise Discount Code (e.g., SHIPATON2026).");
       return;
     }
     setIsProcessing(true);
@@ -131,14 +131,17 @@ export const RevenueCatPaywallModal: React.FC<RevenueCatPaywallModalProps> = ({
 
         {/* Promo Code Input */}
         <div className="mb-4 mt-2">
-          <label className="mb-1.5 block text-xs font-semibold text-slate-400 uppercase tracking-wide">
-            Hackathon Promo Code
+          <label className="mb-1.5 block text-xs font-semibold text-slate-400 uppercase tracking-wide flex items-center justify-between">
+            <span>Enterprise Discount Code</span>
+            {promoCode.trim().toUpperCase() === 'SHIPATON2026' && (
+              <span className="text-emerald-400 text-[10px]">100% Fee Waived</span>
+            )}
           </label>
           <input
             type="text"
             value={promoCode}
             onChange={(e) => setPromoCode(e.target.value)}
-            placeholder="Enter SHIPATON2026..."
+            placeholder="Enter discount code..."
             className="w-full rounded-xl border border-slate-800 bg-slate-950/50 px-4 py-2.5 text-sm text-white placeholder-slate-600 focus:border-cyan-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 transition-colors uppercase"
           />
         </div>
