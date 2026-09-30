@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 import time
 import uuid
 from datetime import datetime
+import asyncio
+import os
+import httpx
+from contextlib import asynccontextmanager
 
 from database import engine, get_db
 from models import (
@@ -37,10 +41,33 @@ from ai_inspection_engine import analyze_inspection_images
 # Initialize SQLite database with tables and baseline tenant entities
 init_db()
 
+async def keep_alive_ping():
+    external_url = os.environ.get("RENDER_EXTERNAL_URL")
+    if not external_url:
+        return
+    ping_url = f"{external_url}/health"
+    async with httpx.AsyncClient() as client:
+        while True:
+            await asyncio.sleep(240)  # 4 minutes
+            try:
+                await client.get(ping_url, timeout=10.0)
+                print(f"Keep-alive ping sent to {ping_url}")
+            except Exception as e:
+                print(f"Keep-alive ping failed: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    task = asyncio.create_task(keep_alive_ping())
+    yield
+    # Shutdown
+    task.cancel()
+
 app = FastAPI(
     title="WorkProof AI Enterprise API",
     description="Enterprise cryptographic contractor proof verification, Alexa+ voice punch-list co-pilot, adaptive dispute memory, and B2B ERP integration gateway.",
-    version="2.5.0"
+    version="2.5.0",
+    lifespan=lifespan
 )
 
 # Consolidated Enterprise Token Bucket Rate Limiting (100k req/min)
