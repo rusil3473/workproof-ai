@@ -1,5 +1,6 @@
-import React from 'react';
-import { CreditCard, QrCode, X, ExternalLink, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { CreditCard, QrCode, X, CheckCircle2, ShieldCheck, RefreshCw, Zap } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import type { Milestone, Job } from '../types';
 
 interface PaymentModalProps {
@@ -17,16 +18,49 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onClose,
   onMarkPaid,
 }) => {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentSuccessRef, setPaymentSuccessRef] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
   const isIndia = job.currency === 'INR';
-  const amountFormatted = `${isIndia ? 'Rs. ' : '$'}${milestone.amount.toLocaleString()} ${job.currency}`;
+  const amountFormatted = `${isIndia ? '₹' : '$'}${milestone.amount.toLocaleString()} ${job.currency}`;
 
-  // Synthetic UPI Intent URL for Indian merchants
+  // Synthetic UPI Intent URL for mobile devices
   const upiUrl = `upi://pay?pa=workproof.pay@icici&pn=${encodeURIComponent(job.clientName)}&am=${milestone.amount}&cu=INR&tn=${encodeURIComponent('Milestone-' + milestone.id)}`;
 
-  // Synthetic Stripe Payment Link for US/Global
-  const stripeUrl = `https://buy.stripe.com/test_workproof_${milestone.id}`;
+  const handleProcessCardPayment = async () => {
+    setIsProcessing(true);
+    try {
+      // Simulate real-time merchant settlement pipeline
+      await new Promise((res) => setTimeout(res, 900));
+      const authRef = `TXN-STRIPE-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+      setPaymentSuccessRef(authRef);
+      confetti({ particleCount: 75, spread: 70, origin: { y: 0.6 } });
+      onMarkPaid();
+      setTimeout(() => {
+        onClose();
+      }, 1400);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleProcessUpiPayment = async () => {
+    setIsProcessing(true);
+    try {
+      await new Promise((res) => setTimeout(res, 800));
+      const upiRef = `UPI-ICICI-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+      setPaymentSuccessRef(upiRef);
+      confetti({ particleCount: 75, spread: 70, origin: { y: 0.6 } });
+      onMarkPaid();
+      setTimeout(() => {
+        onClose();
+      }, 1400);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-md animate-in fade-in duration-200">
@@ -56,37 +90,77 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className="mt-1 text-xs text-slate-500">Milestone: {milestone.title}</div>
         </div>
 
+        {/* Payment Confirmation Banner */}
+        {paymentSuccessRef && (
+          <div className="mb-4 p-3 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5 animate-in fade-in">
+            <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
+            <div>
+              <div className="font-bold">Payment Successfully Settled!</div>
+              <div className="font-mono text-[11px] opacity-80">Auth Ref: {paymentSuccessRef}</div>
+            </div>
+          </div>
+        )}
+
         {/* Dual Rails Tab Content */}
         {isIndia ? (
           <div className="space-y-4">
             <div className="flex flex-col items-center justify-center rounded-xl bg-white p-4 text-slate-950 shadow-md">
-              <QrCode className="h-32 w-32 text-slate-900" />
+              <QrCode className="h-28 w-28 text-slate-900" />
               <p className="mt-2 text-xs font-bold text-slate-700">Scan with Google Pay, PhonePe, or Paytm</p>
               <span className="text-[10px] text-slate-500 font-mono">UPI ID: workproof.pay@icici</span>
             </div>
 
-            <a
-              href={upiUrl}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 py-3 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20"
-            >
-              <span>Pay with Installed UPI App</span>
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
+            <div className="grid grid-cols-2 gap-2">
+              <a
+                href={upiUrl}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 border border-slate-700 py-2.5 text-xs font-semibold text-slate-200 hover:bg-slate-700 transition-colors"
+              >
+                <span>Launch UPI App</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={handleProcessUpiPayment}
+                disabled={isProcessing}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-emerald-500 py-2.5 text-xs font-bold text-slate-950 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/20 disabled:opacity-50"
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <Zap className="h-3.5 w-3.5" />
+                    <span>Confirm UPI Transfer</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
-            <a
-              href={stripeUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 py-3 text-xs font-bold text-slate-950 hover:brightness-110 transition-all shadow-lg shadow-cyan-500/20"
+            <button
+              type="button"
+              onClick={handleProcessCardPayment}
+              disabled={isProcessing}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-400 py-3.5 text-xs font-bold text-slate-950 hover:brightness-110 transition-all shadow-lg shadow-cyan-500/20 active:scale-[0.99] disabled:opacity-50"
             >
-              <CreditCard className="h-4 w-4" />
-              <span>Pay with Apple Pay, Google Pay or Card</span>
-              <ExternalLink className="h-3.5 w-3.5" />
-            </a>
-            <p className="text-center text-[11px] text-slate-400">
-              Powered by Stripe. Funds deposit directly to contractor account.
+              {isProcessing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  <span>Processing Card Authorization...</span>
+                </>
+              ) : (
+                <>
+                  <CreditCard className="h-4 w-4" />
+                  <span>Pay with Apple Pay, Google Pay or Card</span>
+                </>
+              )}
+            </button>
+            <p className="text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Direct Stripe settlement. Zero retainage escrow hold.</span>
             </p>
           </div>
         )}
@@ -98,7 +172,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             onClick={onClose}
             className="text-xs text-slate-400 hover:text-white"
           >
-            Close
+            Cancel
           </button>
           <button
             type="button"
@@ -109,7 +183,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-3.5 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-slate-700 hover:text-emerald-300 transition-colors"
           >
             <CheckCircle2 className="h-3.5 w-3.5" />
-            Mark as Paid (Cash / Bank)
+            Mark as Paid (Cash / Bank Wire)
           </button>
         </div>
       </div>

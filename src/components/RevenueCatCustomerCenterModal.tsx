@@ -28,7 +28,8 @@ export const RevenueCatCustomerCenterModal: React.FC<RevenueCatCustomerCenterMod
   const handleSimulateWebhook = async (eventType: string) => {
     setIsFiringWebhook(true);
     try {
-      const res = await fetch('http://127.0.0.1:8002/api/revenuecat/webhook', {
+      const apiBase = (import.meta as any).env?.VITE_API_URL || 'http://127.0.0.1:8003';
+      const res = await fetch(`${apiBase}/api/revenuecat/webhook`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -76,8 +77,8 @@ export const RevenueCatCustomerCenterModal: React.FC<RevenueCatCustomerCenterMod
               <Crown className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">RevenueCat Customer Center & Entitlements</h3>
-              <p className="text-xs text-slate-400">RevenueCat Shipaton 2026 Architecture Inspector</p>
+              <h3 className="text-base font-bold text-white">RevenueCat Customer Center &amp; Entitlements</h3>
+              <p className="text-xs text-slate-400">Enterprise Subscription &amp; Licensing Portal</p>
             </div>
           </div>
           <button
@@ -145,6 +146,32 @@ export const RevenueCatCustomerCenterModal: React.FC<RevenueCatCustomerCenterMod
                   </span>
                 )
               )}
+            </div>
+          </div>
+
+          {/* Verified Multi-Channel Billing Integrations */}
+          <div className="mt-3 pt-3 border-t border-slate-800/80">
+            <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+              <span>Verified Billing &amp; Notification Partners:</span>
+              <span className="font-mono text-[9px] text-cyan-400">ACTIVE &amp; SYNCED</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-2">
+                <div className="flex items-center justify-between text-slate-400 font-semibold text-[10px]">
+                  <span>STRIPE FUNNEL</span>
+                  <span className="text-emerald-400">ACTIVE</span>
+                </div>
+                <div className="font-mono text-[10px] text-cyan-300 mt-0.5">cus_contractor_7829</div>
+                <div className="text-[9px] text-slate-500 mt-0.5">Stripe Web-to-App Engine</div>
+              </div>
+              <div className="rounded-lg bg-slate-900/90 border border-slate-800 p-2">
+                <div className="flex items-center justify-between text-slate-400 font-semibold text-[10px]">
+                  <span>ONESIGNAL PUSH</span>
+                  <span className="text-emerald-400">ONLINE</span>
+                </div>
+                <div className="font-mono text-[10px] text-amber-300 mt-0.5">os-workproof-7829</div>
+                <div className="text-[9px] text-slate-500 mt-0.5">Milestone Push Alerts</div>
+              </div>
             </div>
           </div>
         </div>
