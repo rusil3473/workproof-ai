@@ -21,19 +21,6 @@ export function generateCertificatePdf(job: Job, milestone: Milestone): jsPDF {
     return doc.splitTextToSize(text || '—', maxWidth);
   };
 
-  // ─── Helper: draw wrapped text, return Y after last line ───
-  const drawWrapped = (
-    text: string, x: number, y: number, maxWidth: number,
-    fontSize: number, color: [number, number, number],
-    style: 'normal' | 'bold' | 'italic' = 'normal', font = 'helvetica', lineH = 4
-  ) => {
-    doc.setFont(font, style);
-    doc.setFontSize(fontSize);
-    doc.setTextColor(...color);
-    const lines = doc.splitTextToSize(text || '—', maxWidth);
-    doc.text(lines, x, y);
-    return y + lines.length * lineH;
-  };
 
   // ═══════════════════════════════════════════════════════════
   //  HEADER BAR
