@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Check, RotateCcw, X, ShieldCheck } from 'lucide-react';
+import { Check, RotateCcw, X, ShieldCheck, AlertCircle } from 'lucide-react';
+import { signatureSignOffSchema } from '../schemas/formSchemas';
 
 interface SignaturePadModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const SignaturePadModal: React.FC<SignaturePadModalProps> = ({
   const [isDrawing, setIsDrawing] = useState(false);
   const [signer, setSigner] = useState(clientName);
   const [hasDrawn, setHasDrawn] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && canvasRef.current) {
@@ -79,10 +81,22 @@ export const SignaturePadModal: React.FC<SignaturePadModalProps> = ({
   };
 
   const handleConfirm = () => {
+    setValidationError(null);
     const canvas = canvasRef.current;
-    if (!canvas || !hasDrawn) return;
+    const validation = signatureSignOffSchema.safeParse({
+      signerName: signer,
+      hasDrawn
+    });
+
+    if (!validation.success) {
+      const issue = validation.error.issues[0];
+      setValidationError(issue ? issue.message : 'Please provide signer name and signature');
+      return;
+    }
+
+    if (!canvas) return;
     const dataUrl = canvas.toDataURL('image/png');
-    onSave(dataUrl, signer);
+    onSave(dataUrl, validation.data.signerName);
   };
 
   return (
@@ -105,6 +119,13 @@ export const SignaturePadModal: React.FC<SignaturePadModalProps> = ({
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {validationError && (
+          <div className="mt-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+            <span>{validationError}</span>
+          </div>
+        )}
 
         <div className="my-4">
           <label className="block text-xs font-semibold text-slate-300 mb-1.5">

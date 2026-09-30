@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Camera, RefreshCw, X, Sliders, MapPin } from 'lucide-react';
+import { Camera, RefreshCw, X, Sliders, MapPin, UploadCloud, ImageIcon } from 'lucide-react';
 import type { GPSCoordinates } from '../types';
 import { computeSha256, drawWatermarkBanner } from '../engine/cryptoWatermark';
 
@@ -19,6 +19,7 @@ export const GhostCameraModal: React.FC<GhostCameraModalProps> = ({
   onCapture,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [ghostOpacity, setGhostOpacity] = useState<number>(35); // 35% translucent default
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
@@ -122,8 +123,44 @@ export const GhostCameraModal: React.FC<GhostCameraModalProps> = ({
     onCapture(watermarkedDataUrl, gps, hash);
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const img = new Image();
+      img.onload = async () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width || 1280;
+        canvas.height = img.height || 720;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const timestamp = new Date().toISOString();
+        const rawData = canvas.toDataURL('image/jpeg', 0.85);
+        const hash = await computeSha256(rawData + timestamp);
+
+        drawWatermarkBanner(ctx, canvas.width, canvas.height, timestamp, gps, hash);
+        const watermarked = canvas.toDataURL('image/jpeg', 0.85);
+        onCapture(watermarked, gps, hash);
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-2 sm:p-4 backdrop-blur-md">
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
       <div className="relative flex flex-col h-full max-h-[90vh] w-full max-w-2xl rounded-2xl bg-slate-950 border border-slate-800 shadow-2xl overflow-hidden">
         {/* Top Header Bar */}
         <div className="flex items-center justify-between px-4 py-3 bg-slate-900/80 border-b border-slate-800 z-20">
@@ -142,6 +179,14 @@ export const GhostCameraModal: React.FC<GhostCameraModalProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-700 transition-colors"
+              title="Upload existing jobsite photo from device"
+            >
+              <UploadCloud className="h-3.5 w-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Upload Photo</span>
+            </button>
             <button
               onClick={() => setFacingMode(facingMode === 'environment' ? 'user' : 'environment')}
               className="rounded-lg p-2 text-slate-300 hover:bg-slate-800 transition-colors"
@@ -212,15 +257,26 @@ export const GhostCameraModal: React.FC<GhostCameraModalProps> = ({
             </div>
           )}
 
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-white transition-colors"
+            >
+              <ImageIcon className="h-4 w-4 text-cyan-400" />
+              <span>Choose File</span>
+            </button>
+
             <button
               onClick={captureFrame}
               className="group flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-tr from-cyan-500 to-emerald-400 p-1 shadow-lg shadow-cyan-500/30 transition-transform active:scale-95"
+              title="Capture Frame"
             >
               <div className="flex h-full w-full items-center justify-center rounded-full bg-slate-950 transition-colors group-hover:bg-transparent">
                 <Camera className="h-7 w-7 text-white transition-colors group-hover:text-slate-950" />
               </div>
             </button>
+
+            <div className="w-20" /> {/* Spacer for symmetry */}
           </div>
         </div>
       </div>
