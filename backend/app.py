@@ -70,6 +70,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+from fastapi_standards import register_standards_exception_handlers
+register_standards_exception_handlers(app)
+
 # Consolidated Enterprise Token Bucket Rate Limiting (100k req/min)
 @app.middleware("http")
 async def rate_limit_middleware(request: Request, call_next):

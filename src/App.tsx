@@ -30,6 +30,7 @@ import { AuthModal } from './components/AuthModal';
 import { LeftSidebarNavigation, type NavTab } from './components/LeftSidebarNavigation';
 import { AIInspectionModal } from './components/AIInspectionModal';
 import { workproofApi, getAuthToken } from './api/workproofApi';
+import { StandardErrorAlert, type ProblemDetails, toProblemDetails } from '@packages/standards';
 import confetti from 'canvas-confetti';
 
 // High-Scale Code-Splitting: Lazy load heavy modals and signature canvas
@@ -49,6 +50,7 @@ export function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
   const [authModalEmail, setAuthModalEmail] = useState('');
+  const [apiError, setApiError] = useState<ProblemDetails | null>(null);
 
   // Navigation Drawer State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -380,7 +382,7 @@ export function App() {
         })
       );
     } catch (err: any) {
-      alert(err.message || 'Failed to delete milestone');
+      setApiError(toProblemDetails(err));
     }
   };
 
@@ -577,6 +579,11 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+        {apiError && (
+          <div className="mb-6">
+            <StandardErrorAlert error={apiError} onDismiss={() => setApiError(null)} />
+          </div>
+        )}
         {/* Reddit Field Grounding Banner */}
         <RedditContractorBanner />
 

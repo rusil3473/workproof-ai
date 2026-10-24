@@ -1,4 +1,5 @@
 import type { Job, Milestone, GPSCoordinates, UserProfile, AuthSession, AIInspectionReport } from '../types';
+import { AppError, type StandardErrorCode } from '@packages/standards';
 
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://workproof-ai-1.onrender.com';
 const TOKEN_KEY = 'workproof_auth_token';
@@ -42,13 +43,25 @@ function getAuthHeaders(extraHeaders: Record<string, string> = {}): HeadersInit 
 async function handleResponse<T>(res: Response, fallbackError: string): Promise<T> {
   if (!res.ok) {
     let errorDetail = fallbackError;
+    let code: StandardErrorCode = res.status === 401 ? 'AUTH_UNAUTHORIZED' : res.status === 403 ? 'RBAC_PERMISSION_DENIED' : 'INTERNAL_ERROR';
+    let userHint = 'Please check the request parameters or try again.';
+    let details: Record<string, any> | undefined = undefined;
+
     try {
       const errJson = await res.json();
-      errorDetail = errJson.detail || errJson.error || fallbackError;
+      errorDetail = errJson.detail || errJson.error || errJson.message || fallbackError;
+      if (errJson.code) code = errJson.code;
+      if (errJson.userHint) userHint = errJson.userHint;
+      if (errJson.details) details = errJson.details;
     } catch {
       // ignore
     }
-    throw new Error(errorDetail);
+
+    throw new AppError(code, errorDetail, {
+      customStatus: res.status,
+      customHint: userHint,
+      details,
+    });
   }
   return res.json();
 }

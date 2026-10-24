@@ -11,10 +11,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@types/ioredis": "^4.28.10",
     "canvas-confetti": "^1.9.4",
+    "ioredis": "^6.0.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^1.47.0",
+    "rate-limiter-flexible": "^11.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4.3.3",
